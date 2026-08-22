@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from './supabase'
 
 const C = {
   teal: "#0F6E56", tealLt: "#E1F5EE", tealMd: "#1D9E75", tealDk: "#085041",
@@ -8,42 +9,6 @@ const C = {
   purple: "#534AB7", purpleLt: "#EEEDFE", purpleMd: "#7F77DD",
   coral: "#993C1D", coralLt: "#FAECE7", coralMd: "#D85A30",
   gray: "#5F5E5A", grayLt: "#F1EFE8", grayMd: "#888780",
-};
-
-const PATIENTS = [
-  { id: "P001", initials: "MG", name: "Miguel G.", dob: "2018-03-14", diagnosis: "ASD Level 2", bcba: "Dr. Maria Santos", color: C.blueMd },
-  { id: "P002", initials: "LD", name: "Lily D.", dob: "2019-07-22", diagnosis: "ASD Level 1", bcba: "Dr. James Park", color: C.coralMd },
-  { id: "P003", initials: "KR", name: "Kevin R.", dob: "2017-11-05", diagnosis: "ASD Level 2", bcba: "Dr. Maria Santos", color: C.tealMd },
-  { id: "P004", initials: "AM", name: "Ana M.", dob: "2020-01-30", diagnosis: "ASD Level 3", bcba: "Dr. James Park", color: C.purpleMd },
-  { id: "P005", initials: "TL", name: "Tom L.", dob: "2016-09-18", diagnosis: "ASD Level 1", bcba: "Dr. Maria Santos", color: C.amberMd },
-  { id: "P006", initials: "SP", name: "Sofia P.", dob: "2018-05-12", diagnosis: "ASD Level 2", bcba: "Dr. James Park", color: C.grayMd },
-];
-
-const PROGRAMS_BY_PATIENT = {
-  P001: [
-    { id: "PR1", name: "Self-injurious behavior", type: "frequency", target: "< 2 per session", targetVal: 2, direction: "decrease", description: "Head banging and biting", color: C.redMd, colorLt: C.redLt },
-    { id: "PR2", name: "On-task engagement", type: "duration", target: "> 5 min per session", targetVal: 300, direction: "increase", description: "Time attending to academic tasks", color: C.amberMd, colorLt: C.amberLt },
-    { id: "PR3", name: "Stereotypy — partial interval", type: "interval", target: "< 20% of intervals", targetVal: 20, direction: "decrease", intervalSecs: 10, totalIntervals: 20, description: "Rocking and hand-flapping", color: C.purpleMd, colorLt: C.purpleLt },
-    { id: "PR4", name: "Compliance with requests", type: "rate", target: "> 80% compliance", targetVal: 80, direction: "increase", description: "Following 1-step instructions", color: C.tealMd, colorLt: C.tealLt },
-  ],
-  P002: [
-    { id: "PR5", name: "Tantrum behavior", type: "frequency", target: "< 1 per session", targetVal: 1, direction: "decrease", description: "Crying/screaming episodes > 30s", color: C.redMd, colorLt: C.redLt },
-    { id: "PR6", name: "Eye contact duration", type: "duration", target: "> 3 min per session", targetVal: 180, direction: "increase", description: "Sustained eye contact during instruction", color: C.amberMd, colorLt: C.amberLt },
-  ],
-};
-
-const HISTORY = {
-  P001: [
-    { date: "5/14", sib: 8, compliance: 55, ontask: 72, stereotypy: 65 },
-    { date: "5/16", sib: 6, compliance: 60, ontask: 90, stereotypy: 60 },
-    { date: "5/19", sib: 7, compliance: 58, ontask: 120, stereotypy: 55 },
-    { date: "5/21", sib: 5, compliance: 65, ontask: 148, stereotypy: 50 },
-    { date: "5/22", sib: 4, compliance: 70, ontask: 168, stereotypy: 45 },
-    { date: "5/23", sib: 5, compliance: 68, ontask: 180, stereotypy: 40 },
-    { date: "5/24", sib: 4, compliance: 74, ontask: 210, stereotypy: 35 },
-    { date: "5/25", sib: 3, compliance: 72, ontask: 222, stereotypy: 30 },
-    { date: "5/26", sib: 2, compliance: 76, ontask: 228, stereotypy: 25 },
-  ],
 };
 
 const fmt = (secs) => {
@@ -58,6 +23,21 @@ const fmtHMS = (secs) => {
   return `${h}:${m}:${s}`;
 };
 const age = (dob) => Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 3600 * 1000));
+
+// Color helpers for programs from DB
+const typeColors = {
+  frequency: { color: C.redMd, colorLt: C.redLt },
+  duration:  { color: C.amberMd, colorLt: C.amberLt },
+  interval:  { color: C.purpleMd, colorLt: C.purpleLt },
+  rate:      { color: C.tealMd, colorLt: C.tealLt },
+  latency:   { color: C.blueMd, colorLt: C.blueLt },
+};
+const enrichProg = (p) => ({
+  ...p,
+  color:   p.color || typeColors[p.type]?.color || C.gray,
+  colorLt: typeColors[p.type]?.colorLt || C.grayLt,
+  targetVal: p.target_val,
+});
 
 function MiniChart({ data, color, height = 48, width = 120 }) {
   if (!data || data.length < 2) return null;
@@ -86,7 +66,7 @@ function ActionBtn({ onClick, icon, label, primary, color, colorLt, disabled }) 
 }
 
 function ProgramCard({ prog, children }) {
-  const typeLabel = { frequency:"Frequency", duration:"Duration", interval:"Interval", rate:"Rate" }[prog.type];
+  const typeLabel = { frequency:"Frequency", duration:"Duration", interval:"Interval", rate:"Rate", latency:"Latency" }[prog.type];
   return (
     <div style={{ background:"#fff", border:"0.5px solid rgba(0,0,0,.12)", borderRadius:14, padding:"14px 16px" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
@@ -161,7 +141,7 @@ function DurationCard({ prog, sessionActive, onRecord }) {
 }
 
 function IntervalCard({ prog, sessionActive, onRecord }) {
-  const total = prog.totalIntervals||20;
+  const total = prog.total_intervals||20;
   const [cells, setCells] = useState(()=>Array(total).fill(null));
   const [current, setCurrent] = useState(-1);
   const [intervalRunning, setIntervalRunning] = useState(false);
@@ -171,7 +151,7 @@ function IntervalCard({ prog, sessionActive, onRecord }) {
     if (!sessionActive) { onRecord(null,"Start the session first"); return; }
     if (intervalRunning) return;
     const next = cells.findIndex(c=>c===null); if(next===-1)return;
-    setIntervalRunning(true); setCurrent(next); setIntervalSecs(prog.intervalSecs);
+    setIntervalRunning(true); setCurrent(next); setIntervalSecs(prog.interval_secs||10);
     intRef.current = setInterval(()=>setIntervalSecs(s=>{
       if(s<=1){clearInterval(intRef.current);setIntervalRunning(false);setCurrent(-1);return 0;}
       return s-1;
@@ -240,7 +220,7 @@ function RateCard({ prog, sessionActive, onRecord }) {
 }
 
 function SessionView({ programs, sessionActive, onRecord }) {
-  const typeOrder = ["frequency","duration","interval","rate"];
+  const typeOrder = ["frequency","duration","interval","rate","latency"];
   const sorted = [...programs].sort((a,b)=>typeOrder.indexOf(a.type)-typeOrder.indexOf(b.type));
   return (
     <div>
@@ -262,7 +242,7 @@ function SessionView({ programs, sessionActive, onRecord }) {
 }
 
 function ProgramsView({ programs }) {
-  const typeIcon={frequency:"🔢",duration:"⏱",interval:"⬜",rate:"%"};
+  const typeIcon={frequency:"🔢",duration:"⏱",interval:"⬜",rate:"%",latency:"⏳"};
   return (
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
@@ -288,7 +268,7 @@ function ProgramsView({ programs }) {
   );
 }
 
-function PatientsView({ patients, selectedId, onSelect }) {
+function PatientsView({ patients, programsByPatient, selectedId, onSelect }) {
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -297,10 +277,10 @@ function PatientsView({ patients, selectedId, onSelect }) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
         {patients.map(p=>{
-          const progs=PROGRAMS_BY_PATIENT[p.id]||[], selected=p.id===selectedId;
+          const progs=programsByPatient[p.id]||[], selected=p.id===selectedId;
           return (
             <div key={p.id} onClick={()=>onSelect(p.id)} style={{background:selected?C.tealLt:"#fff",border:`${selected?"1.5px":"0.5px"} solid ${selected?C.tealMd:"rgba(0,0,0,.12)"}`,borderRadius:14,padding:16,cursor:"pointer",transition:"all .15s"}}>
-              <div style={{width:44,height:44,borderRadius:"50%",background:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:600,color:"#fff",marginBottom:10}}>{p.initials}</div>
+              <div style={{width:44,height:44,borderRadius:"50%",background:p.color||C.blueMd,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:600,color:"#fff",marginBottom:10}}>{p.initials}</div>
               <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{p.name}</div>
               <div style={{fontSize:11,color:C.gray}}>Age {age(p.dob)} · {p.diagnosis}</div>
               <div style={{fontSize:11,color:C.gray,marginTop:2}}>BCBA: {p.bcba}</div>
@@ -317,7 +297,7 @@ function PatientsView({ patients, selectedId, onSelect }) {
 }
 
 function ChartCard({ title, color, data, labels, targetVal, targetLabel, suffix="" }) {
-  if(!data.length)return null;
+  if(!data||!data.length)return null;
   const min=0, max=Math.max(...data,targetVal)*1.2;
   const W=280,H=120,PAD={t:10,r:10,b:28,l:32};
   const cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
@@ -351,42 +331,45 @@ function ChartCard({ title, color, data, labels, targetVal, targetLabel, suffix=
 }
 
 function DashboardView({ patient }) {
-  const hist=HISTORY[patient.id]||[], last=hist[hist.length-1]||{}, first=hist[0]||{};
-  const sibTrend=first.sib?Math.round(((last.sib-first.sib)/first.sib)*100):0;
-  const compTrend=first.compliance?Math.round(((last.compliance-first.compliance)/first.compliance)*100):0;
+  const [sessions, setSessions] = useState([]);
+  useEffect(()=>{
+    if(!patient)return;
+    supabase.from('sessions').select('*').eq('patient_id',patient.id).order('started_at').then(({data})=>{
+      if(data) setSessions(data);
+    });
+  },[patient]);
+
   return (
     <div>
       <div style={{background:"#fff",border:"0.5px solid rgba(0,0,0,.12)",borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"center",gap:14}}>
-        <div style={{width:48,height:48,borderRadius:"50%",background:patient.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:600,color:"#fff"}}>{patient.initials}</div>
+        <div style={{width:48,height:48,borderRadius:"50%",background:patient.color||C.blueMd,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:600,color:"#fff"}}>{patient.initials}</div>
         <div>
           <div style={{fontSize:15,fontWeight:600}}>{patient.name}</div>
           <div style={{fontSize:12,color:C.gray}}>Age {age(patient.dob)} · {patient.diagnosis} · BCBA: {patient.bcba}</div>
         </div>
         <div style={{marginLeft:"auto",textAlign:"right"}}>
-          <div style={{fontSize:11,color:C.gray}}>Analysis period</div>
-          <div style={{fontSize:12,fontWeight:500}}>May 14 – May 26, 2026</div>
+          <div style={{fontSize:11,color:C.gray}}>Total sessions</div>
+          <div style={{fontSize:22,fontWeight:700,color:C.teal}}>{sessions.length}</div>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-        {[
-          {label:"Sessions total",value:hist.length,delta:"This month",color:C.blue},
-          {label:"SIB avg/session",value:last.sib??"—",delta:`${sibTrend>0?"↑":"↓"} ${Math.abs(sibTrend)}% from baseline`,color:last.sib<=2?C.teal:C.redMd},
-          {label:"Compliance rate",value:last.compliance?`${last.compliance}%`:"—",delta:`${compTrend>0?"↑":"↓"} ${Math.abs(compTrend)}% from baseline`,color:last.compliance>=80?C.teal:C.amber},
-          {label:"On-task avg",value:last.ontask?fmt(last.ontask):"—",delta:"Duration per session",color:C.purpleMd},
-        ].map((m,i)=>(
-          <div key={i} style={{background:"rgba(0,0,0,.03)",borderRadius:10,padding:"14px 16px"}}>
-            <div style={{fontSize:11,color:C.gray,marginBottom:4}}>{m.label}</div>
-            <div style={{fontSize:26,fontWeight:600,color:m.color}}>{m.value}</div>
-            <div style={{fontSize:11,color:C.gray,marginTop:2}}>{m.delta}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <ChartCard title="SIB frequency trend" color={C.redMd} data={hist.map(h=>h.sib)} labels={hist.map(h=>h.date)} targetVal={2} targetLabel="Target <2"/>
-        <ChartCard title="Compliance rate (%)" color={C.tealMd} data={hist.map(h=>h.compliance)} labels={hist.map(h=>h.date)} targetVal={80} targetLabel="Target >80%" suffix="%"/>
-        <ChartCard title="On-task duration (sec)" color={C.amberMd} data={hist.map(h=>h.ontask)} labels={hist.map(h=>h.date)} targetVal={300} targetLabel="Target >300s"/>
-        <ChartCard title="Stereotypy (% intervals)" color={C.purpleMd} data={hist.map(h=>h.stereotypy)} labels={hist.map(h=>h.date)} targetVal={20} targetLabel="Target <20%" suffix="%"/>
-      </div>
+      {sessions.length===0?(
+        <div style={{background:"#fff",border:"0.5px solid rgba(0,0,0,.12)",borderRadius:14,padding:40,textAlign:"center",color:C.gray}}>
+          <div style={{fontSize:32,marginBottom:10}}>📊</div>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>No sessions yet</div>
+          <div style={{fontSize:12}}>Start a session to see analytics here</div>
+        </div>
+      ):(
+        <div style={{background:"#fff",border:"0.5px solid rgba(0,0,0,.12)",borderRadius:14,padding:"14px 16px"}}>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Session history</div>
+          {sessions.map((s,i)=>(
+            <div key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<sessions.length-1?"0.5px solid rgba(0,0,0,.08)":"none",fontSize:12}}>
+              <div><strong>{new Date(s.started_at).toLocaleDateString()}</strong></div>
+              <div style={{color:C.gray}}>{s.duration_secs?fmtHMS(s.duration_secs):"—"}</div>
+              <div style={{color:C.teal,fontWeight:500,fontSize:10}}>✓ Complete</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -396,13 +379,12 @@ function ReportsView({ patient }) {
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <div style={{background:"#fff",border:"0.5px solid rgba(0,0,0,.12)",borderRadius:14,padding:18}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Weekly progress report</div>
-        <div style={{fontSize:11,color:C.gray,marginBottom:14}}>Auto-generated · May 19 – May 26, 2026</div>
+        <div style={{fontSize:11,color:C.gray,marginBottom:14}}>Auto-generated</div>
         <div style={{fontSize:12,color:"#3a3a38",lineHeight:1.8}}>
           <div>Patient: <strong>{patient.name}</strong></div>
           <div>BCBA: <strong>{patient.bcba}</strong></div>
-          <div>Sessions: 5 · Total data points: 184</div>
           <div style={{marginTop:10,padding:"10px 12px",background:C.tealLt,borderRadius:8,fontSize:11,color:C.tealDk,lineHeight:1.6}}>
-            <strong>Clinical summary:</strong> SIB frequency decreased 75% from baseline (8 → 2). Compliance improving at 74% trending toward 80% target. On-task duration increased from 72s to 228s.
+            <strong>Clinical summary:</strong> Connect session data to generate automatic summaries.
           </div>
         </div>
         <div style={{display:"flex",gap:8,marginTop:14}}>
@@ -412,30 +394,44 @@ function ReportsView({ patient }) {
       </div>
       <div style={{background:"#fff",border:"0.5px solid rgba(0,0,0,.12)",borderRadius:14,padding:18}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Session log</div>
-        {[{date:"May 26",time:"9:00 AM",duration:"60 min"},{date:"May 24",time:"2:00 PM",duration:"55 min"},{date:"May 22",time:"9:00 AM",duration:"60 min"},{date:"May 21",time:"2:30 PM",duration:"58 min"},{date:"May 19",time:"9:00 AM",duration:"60 min"}].map((s,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:i<4?"0.5px solid rgba(0,0,0,.08)":"none",fontSize:12}}>
-            <div><strong>{s.date}</strong> · {s.time}</div>
-            <div style={{color:C.gray}}>{s.duration}</div>
-            <div style={{color:C.teal,fontWeight:500,fontSize:10}}>✓ Complete</div>
-          </div>
-        ))}
-        <button style={{width:"100%",marginTop:14,padding:"9px 0",borderRadius:8,border:"0.5px solid rgba(0,0,0,.15)",background:"transparent",fontSize:12,fontWeight:500,cursor:"pointer"}}>⬇ Export session log CSV</button>
+        <div style={{fontSize:12,color:C.gray,textAlign:"center",padding:20}}>Sessions will appear here as they are recorded.</div>
       </div>
     </div>
   );
 }
 
 export default function App() {
+  const [patients, setPatients] = useState([]);
+  const [programsByPatient, setProgramsByPatient] = useState({});
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState("session");
-  const [selectedPatientId, setSelectedPatientId] = useState("P001");
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionSecs, setSessionSecs] = useState(0);
   const [toast, setToast] = useState("");
   const timerRef = useRef(null);
   const toastRef = useRef(null);
 
-  const patient = PATIENTS.find(p=>p.id===selectedPatientId);
-  const programs = PROGRAMS_BY_PATIENT[selectedPatientId]||[];
+  useEffect(() => { loadData(); }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    const { data: patientsData } = await supabase.from('patients').select('*').order('name');
+    const { data: programsData } = await supabase.from('programs').select('*').eq('status','active');
+    if (patientsData) {
+      setPatients(patientsData);
+      if (patientsData.length > 0) setSelectedPatientId(patientsData[0].id);
+    }
+    if (programsData) {
+      const grouped = {};
+      programsData.forEach(p => {
+        if (!grouped[p.patient_id]) grouped[p.patient_id] = [];
+        grouped[p.patient_id].push(enrichProg(p));
+      });
+      setProgramsByPatient(grouped);
+    }
+    setLoading(false);
+  };
 
   const showToast = useCallback((msg,err)=>{
     setToast(err||msg); clearTimeout(toastRef.current);
@@ -447,11 +443,24 @@ export default function App() {
     timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);
     showToast("Session started!");
   };
-  const endSession = () => {
+
+  const endSession = async () => {
     setSessionActive(false); clearInterval(timerRef.current);
+    if (selectedPatientId) {
+      await supabase.from('sessions').insert({
+        patient_id: selectedPatientId,
+        rbt_name: 'RBT',
+        ended_at: new Date().toISOString(),
+        duration_secs: sessionSecs,
+      });
+    }
     showToast("Session ended · Data saved");
   };
+
   useEffect(()=>()=>clearInterval(timerRef.current),[]);
+
+  const patient = patients.find(p => p.id === selectedPatientId);
+  const patientPrograms = programsByPatient[selectedPatientId] || [];
 
   const NAV=[
     {id:"session",label:"Session",icon:"⏺"},
@@ -461,6 +470,21 @@ export default function App() {
     {id:"reports",label:"Reports",icon:"📄"},
   ];
   const viewTitles={session:"Session recording",programs:"Treatment programs",patients:"Patients",dashboard:"BCBA dashboard",reports:"Reports & exports"};
+
+  if (loading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:12,background:"#f5f4f0"}}>
+      <div style={{fontSize:36}}>🧠</div>
+      <div style={{fontSize:14,fontWeight:600,color:C.teal}}>Loading ABA Collect…</div>
+    </div>
+  );
+
+  if (!patient) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:12,background:"#f5f4f0"}}>
+      <div style={{fontSize:36}}>⚠️</div>
+      <div style={{fontSize:14,fontWeight:600,color:C.amber}}>No patients found in database</div>
+      <div style={{fontSize:12,color:C.gray}}>Check your Supabase connection</div>
+    </div>
+  );
 
   return (
     <div style={{display:"flex",height:"100vh",fontFamily:"'DM Sans',system-ui,sans-serif",background:"#f5f4f0"}}>
@@ -494,10 +518,10 @@ export default function App() {
         <div style={{padding:"12px 8px",borderTop:"0.5px solid rgba(0,0,0,.08)"}}>
           <div style={{fontSize:10,color:C.grayMd,textTransform:"uppercase",letterSpacing:".07em",padding:"0 10px",marginBottom:6}}>Current patient</div>
           <div onClick={()=>setView("patients")} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 10px",borderRadius:10,background:C.blueLt,border:"0.5px solid rgba(24,95,165,.2)",cursor:"pointer"}}>
-            <div style={{width:30,height:30,borderRadius:"50%",background:patient.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{patient.initials}</div>
+            <div style={{width:30,height:30,borderRadius:"50%",background:patient.color||C.blueMd,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{patient.initials}</div>
             <div>
               <div style={{fontSize:12,fontWeight:600,color:C.blue}}>{patient.name}</div>
-              <div style={{fontSize:10,color:C.grayMd}}>{patient.id} · {patient.diagnosis}</div>
+              <div style={{fontSize:10,color:C.grayMd}}>{patient.diagnosis}</div>
             </div>
           </div>
         </div>
@@ -522,9 +546,9 @@ export default function App() {
         </div>
 
         <div style={{flex:1,overflowY:"auto",padding:20}}>
-          {view==="session"&&<SessionView programs={programs} sessionActive={sessionActive} onRecord={showToast}/>}
-          {view==="programs"&&<ProgramsView programs={programs}/>}
-          {view==="patients"&&<PatientsView patients={PATIENTS} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${PATIENTS.find(p=>p.id===id)?.name}`);}}/>}
+          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast}/>}
+          {view==="programs"&&<ProgramsView programs={patientPrograms}/>}
+          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}
           {view==="dashboard"&&<DashboardView patient={patient}/>}
           {view==="reports"&&<ReportsView patient={patient}/>}
         </div>
