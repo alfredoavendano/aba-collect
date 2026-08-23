@@ -400,7 +400,7 @@ function ReportsView({ patient }) {
   );
 }
 
-export default function App() {
+export default function App({ user, profile, onLogout })  {
   const [patients, setPatients] = useState([]);
   const [programsByPatient, setProgramsByPatient] = useState({});
   const [selectedPatientId, setSelectedPatientId] = useState(null);
@@ -500,6 +500,8 @@ export default function App() {
         <div style={{padding:"20px 18px 14px",borderBottom:"0.5px solid rgba(0,0,0,.08)"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,fontSize:14,fontWeight:700,color:C.teal}}><span style={{fontSize:20}}>🧠</span> ABA Collect</div>
           <div style={{fontSize:10,color:C.grayMd,marginTop:3}}>RBT Data Platform · v2.0</div>
+<div style={{fontSize:10,color:C.grayMd,marginTop:6}}>{profile?.full_name}</div>
+<div style={{fontSize:10,color:C.grayMd}}>{profile?.role?.toUpperCase()}</div>
         </div>
         <div style={{padding:"10px 8px",flex:1}}>
           <div style={{fontSize:10,color:C.grayMd,letterSpacing:".07em",textTransform:"uppercase",padding:"8px 10px 4px"}}>Workspace</div>
@@ -562,6 +564,11 @@ export default function App() {
             {!sessionActive&&<button onClick={startSession} style={{padding:"9px 18px",borderRadius:8,border:"none",background:C.teal,color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>▶ Start session</button>}
           </div>
         )}
+        <div style={{padding:"8px",borderTop:"0.5px solid rgba(0,0,0,.08)"}}>
+  <button onClick={onLogout} style={{width:"100%",padding:"8px 0",borderRadius:8,border:"0.5px solid rgba(0,0,0,.15)",background:"transparent",fontSize:12,fontWeight:500,cursor:"pointer",color:C.gray}}>
+    Sign out
+  </button>
+</div>
       </div>
 
       <Toast msg={toast}/>
