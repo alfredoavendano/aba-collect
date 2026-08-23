@@ -416,8 +416,17 @@ export default function App({ user, profile, onLogout })  {
 
   const loadData = async () => {
     setLoading(true);
-    const { data: patientsData } = await supabase.from('patients').select('*').order('name');
-    const { data: programsData } = await supabase.from('programs').select('*').eq('status','active');
+// Get assigned patient IDs for this RBT
+const { data: assignmentData } = await supabase
+  .from('patient_assignments')
+  .select('patient_id')
+  .eq('rbt_id', user.id);
+
+const patientIds = (assignmentData || []).map(a => a.patient_id);
+
+const { data: patientsData } = patientIds.length > 0
+  ? await supabase.from('patients').select('*').in('id', patientIds).order('name')
+  : { data: [] };    const { data: programsData } = await supabase.from('programs').select('*').eq('status','active');
     if (patientsData) {
       setPatients(patientsData);
       if (patientsData.length > 0) setSelectedPatientId(patientsData[0].id);
@@ -568,7 +577,7 @@ export default function App({ user, profile, onLogout })  {
   <button onClick={onLogout} style={{width:"100%",padding:"8px 0",borderRadius:8,border:"0.5px solid rgba(0,0,0,.15)",background:"transparent",fontSize:12,fontWeight:500,cursor:"pointer",color:C.gray}}>
     Sign out
   </button>
-</div>
+</div> 
       </div>
 
       <Toast msg={toast}/>
