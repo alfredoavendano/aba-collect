@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from './supabase'
+import SessionNote from './SessionNote'
 
 const C = {
   teal: "#0F6E56", tealLt: "#E1F5EE", tealMd: "#1D9E75", tealDk: "#085041",
@@ -219,11 +220,36 @@ function RateCard({ prog, sessionActive, onRecord }) {
   );
 }
 
-function SessionView({ programs, sessionActive, onRecord }) {
+function SessionView({ programs, sessionActive, onRecord, pendingSessions = [], onDocumentSession }) {
   const typeOrder = ["frequency","duration","interval","rate","latency"];
   const sorted = [...programs].sort((a,b)=>typeOrder.indexOf(a.type)-typeOrder.indexOf(b.type));
   return (
     <div>
+      {pendingSessions.length > 0 && (
+  <div style={{ background: C.amberLt, border: `0.5px solid ${C.amberMd}40`, borderRadius: 12, padding: "14px 18px", marginBottom: 16 }}>
+    <div style={{ fontSize: 13, fontWeight: 700, color: C.amber, marginBottom: 10 }}>
+      📝 {pendingSessions.length} session{pendingSessions.length > 1 ? "s" : ""} pending documentation
+    </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {pendingSessions.map(s => (
+        <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff", borderRadius: 8, padding: "10px 14px" }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600 }}>
+              {new Date(s.started_at).toLocaleDateString()} · {new Date(s.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+            <div style={{ fontSize: 11, color: C.grayMd, marginTop: 1 }}>
+              Duration: {fmtHMS(s.duration_secs || 0)}
+            </div>
+          </div>
+          <button onClick={() => onDocumentSession(s)}
+            style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.amber, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            Document
+          </button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
       {!sessionActive&&<div style={{background:C.amberLt,border:`0.5px solid ${C.amberMd}40`,borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:12,color:C.amber,fontWeight:500}}>⚠ Session not started — press "Start session" below to begin recording data</div>}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         {sorted.map(prog=>
@@ -407,12 +433,18 @@ export default function App({ user, profile, onLogout })  {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("session");
   const [sessionActive, setSessionActive] = useState(false);
+  const [showSessionNote, setShowSessionNote] = useState(false);
+const [completedSession, setCompletedSession] = useState(null);
+const [pendingSessions, setPendingSessions] = useState([]);
   const [sessionSecs, setSessionSecs] = useState(0);
   const [toast, setToast] = useState("");
   const timerRef = useRef(null);
   const toastRef = useRef(null);
 
   useEffect(() => { loadData(); }, []);
+
+useEffect(() => { loadPendingSessions(); }, [selectedPatientId]);
+
 
   const loadData = async () => {
     setLoading(true);
@@ -442,6 +474,17 @@ const { data: patientsData } = patientIds.length > 0
     setLoading(false);
   };
 
+  const loadPendingSessions = async () => {
+  if (!selectedPatientId) return;
+  const { data } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('patient_id', selectedPatientId)
+    .eq('documentation_status', 'pending')
+    .order('started_at', { ascending: false });
+  setPendingSessions(data || []);
+};
+
   const showToast = useCallback((msg,err)=>{
     setToast(err||msg); clearTimeout(toastRef.current);
     toastRef.current=setTimeout(()=>setToast(""),2500);
@@ -455,15 +498,19 @@ const { data: patientsData } = patientIds.length > 0
 
   const endSession = async () => {
     setSessionActive(false); clearInterval(timerRef.current);
+    let savedSession = null;
     if (selectedPatientId) {
-      await supabase.from('sessions').insert({
+      const { data } = await supabase.from('sessions').insert({
         patient_id: selectedPatientId,
-        rbt_name: 'RBT',
+        rbt_name: user?.email || 'RBT',
         ended_at: new Date().toISOString(),
         duration_secs: sessionSecs,
-      });
+      }).select().single();
+      savedSession = data;
     }
-    showToast("Session ended · Data saved");
+    setCompletedSession(savedSession);
+    setShowSessionNote(true);
+    loadPendingSessions();
   };
 
   useEffect(()=>()=>clearInterval(timerRef.current),[]);
@@ -486,6 +533,34 @@ const { data: patientsData } = patientIds.length > 0
       <div style={{fontSize:14,fontWeight:600,color:C.teal}}>Loading ABA Collect…</div>
     </div>
   );
+
+  if (showSessionNote && completedSession && patient) return (
+  <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans', system-ui, sans-serif", background: "#f5f4f0" }}>
+    <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap'); *{box-sizing:border-box}`}</style>
+    <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: C.teal }}>🧠 ABA Collect</div>
+        <div style={{ fontSize: 13, color: C.grayMd }}>— Session note</div>
+      </div>
+      <SessionNote
+        session={completedSession}
+        patient={patient}
+        programs={patientPrograms}
+        user={user}
+        onComplete={async () => {
+  if (completedSession) {
+    await supabase.from('sessions').update({ documentation_status: 'documented' }).eq('id', completedSession.id);
+  }
+  setShowSessionNote(false);
+  setCompletedSession(null);
+  loadPendingSessions();
+  showToast("Note saved ✓");
+}}
+        onSkip={() => { setShowSessionNote(false); setCompletedSession(null); showToast("Session ended · Note skipped"); }}
+      />
+    </div>
+  </div>
+);
 
   if (!patient) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:12,background:"#f5f4f0"}}>
@@ -557,7 +632,7 @@ const { data: patientsData } = patientIds.length > 0
         </div>
 
         <div style={{flex:1,overflowY:"auto",padding:20}}>
-          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast}/>}
+          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={(s) => { setCompletedSession(s); setShowSessionNote(true); }}/>}
           {view==="programs"&&<ProgramsView programs={patientPrograms}/>}
           {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}
           {view==="dashboard"&&<DashboardView patient={patient}/>}
