@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
 import ABACollect from "./ABACollect";
+import AdminPanel from "./AdminPanel";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -56,5 +57,9 @@ export default function App() {
 
   if (!user) return <Auth onLogin={handleLogin} />;
 
-  return <ABACollect user={user} profile={profile} onLogout={handleLogout} />;
+ if (profile?.role === "admin" || profile?.role === "super_bcba") {
+  return <AdminPanel profile={profile} onLogout={handleLogout} />;
+}
+return <ABACollect user={user} profile={profile} onLogout={handleLogout} />;
+
 }
