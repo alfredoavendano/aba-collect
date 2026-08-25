@@ -1,23 +1,53 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
-const C = {
-  teal: "#0F6E56", tealLt: "#E1F5EE", tealMd: "#1D9E75", tealDk: "#085041",
-  blue: "#185FA5", blueLt: "#E6F1FB", blueMd: "#378ADD",
-  amber: "#BA7517", amberLt: "#FAEEDA", amberMd: "#EF9F27",
-  red: "#A32D2D", redLt: "#FCEBEB", redMd: "#E24B4A",
-  purple: "#534AB7", purpleLt: "#EEEDFE", purpleMd: "#7F77DD",
-  gray: "#5F5E5A", grayLt: "#F1EFE8", grayMd: "#888780",
+const T = {
+  navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
+  green:"#0D6E4E",greenLt:"#E6F5F0",greenMd:"#18A274",
+  red:"#B91C1C",redLt:"#FEF2F2",redMd:"#DC2626",
+  amber:"#92400E",amberLt:"#FFFBEB",amberMd:"#D97706",
+  indigo:"#4338CA",indigoLt:"#EEF2FF",indigoMd:"#6366F1",
+  ink:"#0F172A",ink2:"#334155",ink3:"#64748B",
+  bg:"#F8F9FB",bg2:"#F1F3F7",white:"#FFFFFF",
+  border:"rgba(15,23,42,.08)",border2:"rgba(15,23,42,.14)",
 };
 
-const age = (dob) => dob ? Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 3600 * 1000)) : "—";
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:${T.bg};color:${T.ink};-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;transition:opacity .12s,transform .12s}
+  button:hover{opacity:.85} button:active{transform:scale(.98)}
+  select{font-family:inherit}
+  ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:4px}
+`;
 
-const ROLE_COLORS = {
-  admin:      { bg: "#FCEBEB", color: "#A32D2D" },
-  super_bcba: { bg: "#E6F1FB", color: "#185FA5" },
-  bcba:       { bg: "#E1F5EE", color: "#0F6E56" },
-  rbt:        { bg: "#F1EFE8", color: "#5F5E5A" },
+const age = (dob) => dob ? Math.floor((Date.now()-new Date(dob))/(365.25*864e5)) : "—";
+const ROLES = ["rbt","bcba","clinical_director","admin"];
+const roleBadge = {
+  admin:            { bg:"#FEF2F2", color:"#B91C1C" },
+  clinical_director:{ bg:"#EEF2FF", color:"#4338CA" },
+  bcba:             { bg:"#E6F5F0", color:"#0D6E4E" },
+  rbt:              { bg:"#F1F3F7", color:"#475569" },
 };
+
+function Btn({ onClick, children, variant="secondary", style={} }) {
+  const v = {
+    primary:  { background:T.navy,  color:"#fff", border:"none" },
+    success:  { background:T.green, color:"#fff", border:"none" },
+    danger:   { background:T.redLt, color:T.red,  border:`1px solid ${T.red}30` },
+    secondary:{ background:T.white, color:T.ink2, border:`1px solid ${T.border2}` },
+  };
+  return (
+    <button onClick={onClick} style={{ ...v[variant], padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, display:"flex", alignItems:"center", gap:6, ...style }}>
+      {children}
+    </button>
+  );
+}
+
+function Card({ children, style={} }) {
+  return <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"20px 24px", ...style }}>{children}</div>;
+}
 
 export default function SuperBCBAPanel({ user, profile, onLogout }) {
   const [tab, setTab] = useState("overview");
@@ -35,259 +65,232 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
     setLoading(true);
     const [pats, bcbaData, rbtData, assignData, sessionData] = await Promise.all([
       supabase.from("patients").select("*").order("name"),
-      supabase.from("profiles").select("*").eq("role", "bcba").eq("approved", true).order("full_name"),
-      supabase.from("profiles").select("*").eq("role", "rbt").eq("approved", true).order("full_name"),
+      supabase.from("profiles").select("*").eq("role","bcba").eq("approved",true).order("full_name"),
+      supabase.from("profiles").select("*").eq("role","rbt").eq("approved",true).order("full_name"),
       supabase.from("patient_assignments").select("*"),
-      supabase.from("sessions").select("*").order("started_at", { ascending: false }).limit(20),
+      supabase.from("sessions").select("*").order("started_at",{ascending:false}).limit(20),
     ]);
-    setPatients(pats.data || []);
-    setBcbas(bcbaData.data || []);
-    setRbts(rbtData.data || []);
-    setAssignments(assignData.data || []);
-    setSessions(sessionData.data || []);
+    setPatients(pats.data||[]);
+    setBcbas(bcbaData.data||[]);
+    setRbts(rbtData.data||[]);
+    setAssignments(assignData.data||[]);
+    setSessions(sessionData.data||[]);
     setLoading(false);
   };
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+  const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""),2500); };
 
   const assignPatientToBCBA = async (patientId, bcbaId) => {
-    await supabase.from("patients").update({ bcba_id: bcbaId }).eq("id", patientId);
-    showToast("Patient assigned to BCBA ✓");
-    loadData();
+    await supabase.from("patients").update({ bcba_id:bcbaId }).eq("id",patientId);
+    showToast("Patient assigned to BCBA ✓"); loadData();
   };
 
-  const fmtHMS = (secs) => {
-    if (!secs) return "—";
-    return `${String(Math.floor(secs/3600)).padStart(2,"0")}:${String(Math.floor((secs%3600)/60)).padStart(2,"0")}:${String(secs%60).padStart(2,"0")}`;
-  };
+  const approve = async (id) => { await supabase.from("profiles").update({ approved:true }).eq("id",id); showToast("User approved ✓"); loadData(); };
+  const reject  = async (id) => { await supabase.from("profiles").update({ approved:false }).eq("id",id); showToast("User rejected"); loadData(); };
+  const changeRole = async (id, role) => { await supabase.from("profiles").update({ role }).eq("id",id); showToast("Role updated ✓"); loadData(); };
 
-const NAV = [
-  { id: "overview", label: "Overview", icon: "📊" },
-  { id: "patients", label: "All patients", icon: "👤" },
-  { id: "bcbas", label: "BCBAs", icon: "🧠" },
-  { id: "rbts", label: "RBTs", icon: "👥" },
-  { id: "sessions", label: "All sessions", icon: "📋" },
-  { id: "users", label: "User management", icon: "🔐" },
-];
+  const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
+
+  const NAV = [
+    {id:"overview", label:"Overview",        icon:"📊"},
+    {id:"patients", label:"All patients",    icon:"👤"},
+    {id:"bcbas",    label:"BCBAs",           icon:"🧠"},
+    {id:"rbts",     label:"RBTs",            icon:"👥"},
+    {id:"sessions", label:"All sessions",    icon:"📋"},
+    {id:"users",    label:"User management", icon:"🔐"},
+  ];
+
+  const allUsers = [...bcbas, ...rbts];
+  const pendingUsers = allUsers.filter(u=>!u.approved);
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans', system-ui, sans-serif", background: "#f5f4f0" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
-        * { box-sizing: border-box; }
-        button:hover { opacity: .85; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 4px; }
-      `}</style>
+    <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
+      <style>{CSS}</style>
 
       {/* Sidebar */}
-      <div style={{ width: 220, background: "#fff", borderRight: "0.5px solid rgba(0,0,0,.1)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-        <div style={{ padding: "20px 18px 14px", borderBottom: "0.5px solid rgba(0,0,0,.08)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: C.blue }}>
-            <span style={{ fontSize: 20 }}>🧠</span> ABA Collect
-          </div>
-          <div style={{ fontSize: 10, color: C.grayMd, marginTop: 3 }}>Clinical Director Panel</div>
-          <div style={{ fontSize: 11, color: C.gray, marginTop: 8, fontWeight: 500 }}>{profile?.full_name}</div>
-          <div style={{ fontSize: 10, color: C.blueMd, fontWeight: 600 }}>CLINICAL DIRECTOR</div>
+      <div style={{ width:232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0 }}>
+        <div style={{ padding:"24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)" }}>
+          <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>
+          <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>Clinical Director</div>
+          {profile && (
+            <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(255,255,255,.07)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:28, height:28, borderRadius:"50%", background:T.indigoMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                {profile.full_name?.[0]?.toUpperCase()||"?"}
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{profile.full_name}</div>
+                <div style={{ fontSize:9, color:"rgba(255,255,255,.45)", marginTop:1, textTransform:"uppercase", letterSpacing:".05em" }}>CLINICAL DIRECTOR</div>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div style={{ padding: "10px 8px", flex: 1 }}>
-          {NAV.map(n => (
-            <div key={n.id} onClick={() => setTab(n.id)}
-              style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 10px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? C.blue : C.gray, background: tab === n.id ? C.blueLt : "transparent", marginBottom: 2, transition: "all .12s" }}>
-              <span>{n.icon}</span>{n.label}
+        <div style={{ padding:"16px 12px", flex:1, overflowY:"auto" }}>
+          {NAV.map(n=>(
+            <div key={n.id} onClick={()=>setTab(n.id)}
+              style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 12px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:tab===n.id?700:400, color:tab===n.id?"#fff":"rgba(255,255,255,.6)", background:tab===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:3, transition:"all .15s" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}><span>{n.icon}</span>{n.label}</div>
+              {n.id==="users" && pendingUsers.length>0 && (
+                <span style={{ fontSize:10, fontWeight:700, background:"rgba(255,255,255,.15)", color:"#fff", padding:"1px 7px", borderRadius:99 }}>{pendingUsers.length}</span>
+              )}
             </div>
           ))}
         </div>
 
-        <div style={{ padding: "12px 8px", borderTop: "0.5px solid rgba(0,0,0,.08)" }}>
-          <button onClick={onLogout}
-            style={{ width: "100%", padding: "8px 0", borderRadius: 8, border: "0.5px solid rgba(0,0,0,.15)", background: "transparent", fontSize: 12, fontWeight: 500, cursor: "pointer", color: C.gray }}>
+        <div style={{ padding:"12px", borderTop:"1px solid rgba(255,255,255,.08)" }}>
+          <button onClick={onLogout} style={{ width:"100%", padding:"8px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.12)", background:"transparent", fontSize:12, fontWeight:500, cursor:"pointer", color:"rgba(255,255,255,.5)" }}>
             Sign out
           </button>
         </div>
       </div>
 
       {/* Main */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ padding: "13px 22px", borderBottom: "0.5px solid rgba(0,0,0,.08)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        <div style={{ padding:"16px 28px", borderBottom:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>{NAV.find(n => n.id === tab)?.label}</div>
-            <div style={{ fontSize: 11, color: C.grayMd, marginTop: 1 }}>Organization overview</div>
+            <div style={{ fontSize:20, fontWeight:800, color:T.ink, letterSpacing:"-.5px" }}>{NAV.find(n=>n.id===tab)?.label}</div>
+            <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>Organization overview</div>
           </div>
-          <button onClick={loadData}
-            style={{ fontSize: 12, padding: "7px 14px", borderRadius: 8, border: "0.5px solid rgba(0,0,0,.15)", background: "transparent", cursor: "pointer", fontWeight: 500 }}>
-            Refresh
-          </button>
+          <Btn onClick={loadData}>↻ Refresh</Btn>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+        <div style={{ flex:1, overflowY:"auto", padding:28 }}>
           {loading ? (
-            <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>Loading…</div>
-          ) : tab === "overview" ? (
+            <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div>
+          ) : tab==="overview" ? (
             <OverviewTab patients={patients} bcbas={bcbas} rbts={rbts} sessions={sessions} fmtHMS={fmtHMS} />
-          ) : tab === "patients" ? (
-            <PatientsTab patients={patients} bcbas={bcbas} assignments={assignments} rbts={rbts} onAssign={assignPatientToBCBA} showToast={showToast} reload={loadData} />
-          ) : tab === "bcbas" ? (
+          ) : tab==="patients" ? (
+            <PatientsTab patients={patients} bcbas={bcbas} assignments={assignments} rbts={rbts} onAssign={assignPatientToBCBA} />
+          ) : tab==="bcbas" ? (
             <BCBAsTab bcbas={bcbas} patients={patients} />
-          ) : tab === "rbts" ? (
+          ) : tab==="rbts" ? (
             <RBTsTab rbts={rbts} assignments={assignments} patients={patients} />
-          ) : tab === "sessions" ? (
+          ) : tab==="sessions" ? (
             <SessionsTab sessions={sessions} patients={patients} fmtHMS={fmtHMS} />
-          ) : tab === "users" ? (
-             <UsersTab showToast={showToast} reload={loadData} />
+          ) : tab==="users" ? (
+            <UsersTab showToast={showToast} />
           ) : null}
         </div>
       </div>
 
-      {/* Toast */}
-      <div style={{ position: "fixed", bottom: 24, right: 24, background: "#1a1a18", color: "#fff", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 500, opacity: toast ? 1 : 0, transform: toast ? "translateY(0)" : "translateY(10px)", transition: "all .25s", pointerEvents: "none", zIndex: 9999 }}>
-        {toast || "\u200b"}
+      <div style={{ position:"fixed", bottom:24, right:24, background:T.ink, color:"#fff", padding:"11px 20px", borderRadius:10, fontSize:13, fontWeight:600, opacity:toast?1:0, transform:toast?"translateY(0)":"translateY(8px)", transition:"all .2s", pointerEvents:"none", zIndex:9999 }}>
+        {toast||"\u200b"}
       </div>
     </div>
   );
 }
 
-// ─── Overview Tab ─────────────────────────────────────────────────────────────
 function OverviewTab({ patients, bcbas, rbts, sessions, fmtHMS }) {
-  const thisWeek = sessions.filter(s => {
-    const d = new Date(s.started_at);
-    const now = new Date();
-    const diff = (now - d) / (1000 * 3600 * 24);
-    return diff <= 7;
-  });
-
+  const thisWeek = sessions.filter(s=>(Date.now()-new Date(s.started_at))/(1000*3600*24)<=7);
   const metrics = [
-    { label: "Total patients", value: patients.length, color: C.teal, icon: "👤" },
-    { label: "Active BCBAs", value: bcbas.length, color: C.blue, icon: "🧠" },
-    { label: "Active RBTs", value: rbts.length, color: C.purple, icon: "👥" },
-    { label: "Sessions this week", value: thisWeek.length, color: C.amber, icon: "📋" },
+    { label:"Total patients",      value:patients.length, color:T.navy  },
+    { label:"Active BCBAs",        value:bcbas.length,    color:T.green  },
+    { label:"Active RBTs",         value:rbts.length,     color:T.indigo },
+    { label:"Sessions this week",  value:thisWeek.length, color:T.amber  },
   ];
-
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
-        {metrics.map((m, i) => (
-          <div key={i} style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 12, padding: "16px 18px" }}>
-            <div style={{ fontSize: 24, marginBottom: 6 }}>{m.icon}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: m.color }}>{m.value}</div>
-            <div style={{ fontSize: 12, color: C.grayMd, marginTop: 2 }}>{m.label}</div>
-          </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+        {metrics.map((m,i)=>(
+          <Card key={i} style={{ padding:"16px 20px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>{m.label}</div>
+            <div style={{ fontSize:36, fontWeight:800, color:m.color, letterSpacing:"-1px" }}>{m.value}</div>
+          </Card>
         ))}
       </div>
-
-      {/* BCBAs and their patients */}
-      <div style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 14, padding: "16px 18px", marginBottom: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>BCBAs and their patients</div>
-        {bcbas.length === 0 ? (
-          <div style={{ fontSize: 12, color: C.grayMd }}>No BCBAs yet</div>
-        ) : bcbas.map(bcba => {
-          const bcbaPatients = patients.filter(p => p.bcba_id === bcba.id);
+      <Card style={{ marginBottom:16 }}>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>BCBAs and their patients</div>
+        {bcbas.length===0 ? <div style={{ fontSize:13, color:T.ink3 }}>No BCBAs yet</div> : bcbas.map(bcba=>{
+          const bp = patients.filter(p=>p.bcba_id===bcba.id);
           return (
-            <div key={bcba.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 0", borderBottom: "0.5px solid rgba(0,0,0,.06)" }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.tealLt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: C.teal, flexShrink: 0 }}>
-                {bcba.full_name?.[0]?.toUpperCase() || "?"}
+            <div key={bcba.id} style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 0", borderBottom:`1px solid ${T.border}` }}>
+              <div style={{ width:38, height:38, borderRadius:"50%", background:T.greenLt, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:T.green, flexShrink:0 }}>
+                {bcba.full_name?.[0]?.toUpperCase()||"?"}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{bcba.full_name}</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-                  {bcbaPatients.length === 0 ? (
-                    <span style={{ fontSize: 11, color: C.grayMd }}>No patients assigned</span>
-                  ) : bcbaPatients.map(p => (
-                    <span key={p.id} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: C.tealLt, color: C.teal, fontWeight: 500 }}>{p.name}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700 }}>{bcba.full_name}</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                  {bp.length===0 ? <span style={{ fontSize:12, color:T.ink3 }}>No patients</span> : bp.map(p=>(
+                    <span key={p.id} style={{ fontSize:11, padding:"3px 10px", borderRadius:99, background:T.greenLt, color:T.green, fontWeight:600 }}>{p.name}</span>
                   ))}
                 </div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: C.teal }}>{bcbaPatients.length}</div>
-                <div style={{ fontSize: 11, color: C.grayMd }}>patients</div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:24, fontWeight:800, color:T.green }}>{bp.length}</div>
+                <div style={{ fontSize:11, color:T.ink3 }}>patients</div>
               </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Recent sessions */}
-      <div style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 14, padding: "16px 18px" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Recent sessions</div>
-        {sessions.slice(0, 5).map((s, i) => {
-          const patient = patients.find(p => p.id === s.patient_id);
+      </Card>
+      <Card>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>Recent sessions</div>
+        {sessions.slice(0,5).map((s,i)=>{
+          const patient = patients.find(p=>p.id===s.patient_id);
           return (
-            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < 4 ? "0.5px solid rgba(0,0,0,.06)" : "none", fontSize: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: patient?.color || C.blueMd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff" }}>
-                  {patient?.initials || "?"}
+            <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:i<4?`1px solid ${T.border}`:"none" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:32, height:32, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>
+                  {patient?.initials||"?"}
                 </div>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{patient?.name || "Unknown"}</div>
-                  <div style={{ color: C.grayMd }}>{new Date(s.started_at).toLocaleDateString()}</div>
+                  <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+                  <div style={{ fontSize:11, color:T.ink3 }}>{new Date(s.started_at).toLocaleDateString()}</div>
                 </div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 600 }}>{fmtHMS(s.duration_secs)}</div>
-                <div style={{ color: s.documentation_status === "documented" ? C.teal : C.amber, fontSize: 10, fontWeight: 500 }}>
-                  {s.documentation_status === "documented" ? "✓ Documented" : "⏳ Pending docs"}
-                </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:13, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
+                <span style={{ fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+                  {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+                </span>
               </div>
             </div>
           );
         })}
-      </div>
+      </Card>
     </div>
   );
 }
 
-// ─── Patients Tab ─────────────────────────────────────────────────────────────
-function PatientsTab({ patients, bcbas, assignments, rbts, onAssign, showToast, reload }) {
+function PatientsTab({ patients, bcbas, assignments, rbts, onAssign }) {
   const [expanded, setExpanded] = useState(null);
-
-  const getRBTForPatient = (patientId) => {
-    const a = assignments.find(a => a.patient_id === patientId);
-    return a ? rbts.find(r => r.id === a.rbt_id) : null;
-  };
-
+  const getRBT = (pid) => { const a=assignments.find(a=>a.patient_id===pid); return a?rbts.find(r=>r.id===a.rbt_id):null; };
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 13, color: C.grayMd, marginBottom: 4 }}>{patients.length} patients total</div>
-      {patients.map(patient => {
-        const bcba = bcbas.find(b => b.id === patient.bcba_id);
-        const rbt = getRBTForPatient(patient.id);
-        const isExpanded = expanded === patient.id;
-
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      <div style={{ fontSize:13, color:T.ink3, fontWeight:500, marginBottom:4 }}>{patients.length} patients total</div>
+      {patients.map(patient=>{
+        const bcba = bcbas.find(b=>b.id===patient.bcba_id);
+        const rbt = getRBT(patient.id);
+        const isOpen = expanded===patient.id;
         return (
-          <div key={patient.id} style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 14, overflow: "hidden" }}>
-            <div onClick={() => setExpanded(isExpanded ? null : patient.id)}
-              style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}>
-              <div style={{ width: 44, height: 44, borderRadius: "50%", background: patient.color || C.blueMd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-                {patient.initials}
+          <div key={patient.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
+            <div onClick={()=>setExpanded(isOpen?null:patient.id)}
+              style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:14, cursor:"pointer" }}>
+              <div style={{ width:48, height:48, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:"#fff", flexShrink:0 }}>{patient.initials}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:15, fontWeight:700 }}>{patient.name}</div>
+                <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>Age {age(patient.dob)} · {patient.diagnosis}</div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{patient.name}</div>
-                <div style={{ fontSize: 11, color: C.grayMd, marginTop: 2 }}>Age {age(patient.dob)} · {patient.diagnosis}</div>
-              </div>
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 11, color: C.grayMd }}>BCBA</div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: bcba ? C.teal : C.amber }}>{bcba?.full_name || "Unassigned"}</div>
+              <div style={{ display:"flex", gap:20, alignItems:"center", marginRight:12 }}>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:11, color:T.ink3, fontWeight:600, textTransform:"uppercase", letterSpacing:".06em" }}>BCBA</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:bcba?T.green:T.amber }}>{bcba?.full_name||"Unassigned"}</div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 11, color: C.grayMd }}>RBT</div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: rbt ? C.blue : C.amber }}>{rbt?.full_name || "Unassigned"}</div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:11, color:T.ink3, fontWeight:600, textTransform:"uppercase", letterSpacing:".06em" }}>RBT</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:rbt?T.navy:T.amber }}>{rbt?.full_name||"Unassigned"}</div>
                 </div>
               </div>
-              <span style={{ fontSize: 14, color: C.grayMd }}>{isExpanded ? "▲" : "▼"}</span>
+              <span style={{ fontSize:16, color:T.ink3 }}>{isOpen?"▲":"▼"}</span>
             </div>
-
-            {isExpanded && (
-              <div style={{ padding: "0 18px 16px", borderTop: "0.5px solid rgba(0,0,0,.06)" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.grayMd, textTransform: "uppercase", letterSpacing: ".06em", margin: "12px 0 8px" }}>
-                  Assign BCBA
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {bcbas.map(b => (
-                    <button key={b.id} onClick={() => onAssign(patient.id, b.id)}
-                      style={{ fontSize: 11, padding: "6px 12px", borderRadius: 8, border: `0.5px solid ${patient.bcba_id === b.id ? C.teal : "rgba(0,0,0,.15)"}`, background: patient.bcba_id === b.id ? C.tealLt : "transparent", color: patient.bcba_id === b.id ? C.teal : C.gray, cursor: "pointer", fontWeight: patient.bcba_id === b.id ? 600 : 400 }}>
-                      {patient.bcba_id === b.id ? "✓ " : ""}{b.full_name}
+            {isOpen && (
+              <div style={{ padding:"0 20px 16px", borderTop:`1px solid ${T.border}` }}>
+                <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", margin:"14px 0 8px" }}>Assign BCBA</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {bcbas.map(b=>(
+                    <button key={b.id} onClick={()=>onAssign(patient.id,b.id)}
+                      style={{ fontSize:12, padding:"7px 14px", borderRadius:8, border:`1px solid ${patient.bcba_id===b.id?T.green:T.border2}`, background:patient.bcba_id===b.id?T.greenLt:"transparent", color:patient.bcba_id===b.id?T.green:T.ink2, cursor:"pointer", fontWeight:patient.bcba_id===b.id?700:400 }}>
+                      {patient.bcba_id===b.id?"✓ ":""}{b.full_name}
                     </button>
                   ))}
                 </div>
@@ -300,37 +303,29 @@ function PatientsTab({ patients, bcbas, assignments, rbts, onAssign, showToast, 
   );
 }
 
-// ─── BCBAs Tab ────────────────────────────────────────────────────────────────
 function BCBAsTab({ bcbas, patients }) {
+  if(!bcbas.length) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}><div style={{ fontSize:40, marginBottom:12 }}>🧠</div><div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>No BCBAs yet</div></div>;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 13, color: C.grayMd, marginBottom: 4 }}>{bcbas.length} BCBAs</div>
-      {bcbas.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🧠</div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>No BCBAs yet</div>
-        </div>
-      ) : bcbas.map(bcba => {
-        const bcbaPatients = patients.filter(p => p.bcba_id === bcba.id);
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      {bcbas.map(bcba=>{
+        const bp = patients.filter(p=>p.bcba_id===bcba.id);
         return (
-          <div key={bcba.id} style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.tealLt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: C.teal, flexShrink: 0 }}>
-              {bcba.full_name?.[0]?.toUpperCase() || "?"}
+          <div key={bcba.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", gap:14 }}>
+            <div style={{ width:48, height:48, borderRadius:"50%", background:T.greenLt, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:T.green, flexShrink:0 }}>
+              {bcba.full_name?.[0]?.toUpperCase()||"?"}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{bcba.full_name}</div>
-              <div style={{ fontSize: 11, color: C.grayMd, marginTop: 2 }}>BCBA · Since {new Date(bcba.created_at).toLocaleDateString()}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
-                {bcbaPatients.length === 0 ? (
-                  <span style={{ fontSize: 11, color: C.grayMd }}>No patients assigned</span>
-                ) : bcbaPatients.map(p => (
-                  <span key={p.id} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: C.tealLt, color: C.teal, fontWeight: 500 }}>{p.name}</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:15, fontWeight:700 }}>{bcba.full_name}</div>
+              <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>BCBA · Since {new Date(bcba.created_at).toLocaleDateString()}</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:8 }}>
+                {bp.length===0 ? <span style={{ fontSize:12, color:T.ink3 }}>No patients</span> : bp.map(p=>(
+                  <span key={p.id} style={{ fontSize:11, padding:"3px 10px", borderRadius:99, background:T.greenLt, color:T.green, fontWeight:600 }}>{p.name}</span>
                 ))}
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: C.teal }}>{bcbaPatients.length}</div>
-              <div style={{ fontSize: 11, color: C.grayMd }}>patients</div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:28, fontWeight:800, color:T.green }}>{bp.length}</div>
+              <div style={{ fontSize:11, color:T.ink3 }}>patients</div>
             </div>
           </div>
         );
@@ -339,38 +334,30 @@ function BCBAsTab({ bcbas, patients }) {
   );
 }
 
-// ─── RBTs Tab ─────────────────────────────────────────────────────────────────
 function RBTsTab({ rbts, assignments, patients }) {
+  if(!rbts.length) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}><div style={{ fontSize:40, marginBottom:12 }}>👥</div><div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>No RBTs yet</div></div>;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 13, color: C.grayMd, marginBottom: 4 }}>{rbts.length} RBTs</div>
-      {rbts.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>👥</div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>No RBTs yet</div>
-        </div>
-      ) : rbts.map(rbt => {
-        const rbtAssignments = assignments.filter(a => a.rbt_id === rbt.id);
-        const rbtPatients = patients.filter(p => rbtAssignments.some(a => a.patient_id === p.id));
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      {rbts.map(rbt=>{
+        const pids = assignments.filter(a=>a.rbt_id===rbt.id).map(a=>a.patient_id);
+        const rbtPatients = patients.filter(p=>pids.includes(p.id));
         return (
-          <div key={rbt.id} style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.blueLt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: C.blue, flexShrink: 0 }}>
-              {rbt.full_name?.[0]?.toUpperCase() || "?"}
+          <div key={rbt.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", gap:14 }}>
+            <div style={{ width:48, height:48, borderRadius:"50%", background:T.navyLt, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:T.navy, flexShrink:0 }}>
+              {rbt.full_name?.[0]?.toUpperCase()||"?"}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{rbt.full_name}</div>
-              <div style={{ fontSize: 11, color: C.grayMd, marginTop: 2 }}>RBT · Since {new Date(rbt.created_at).toLocaleDateString()}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
-                {rbtPatients.length === 0 ? (
-                  <span style={{ fontSize: 11, color: C.grayMd }}>No patients assigned</span>
-                ) : rbtPatients.map(p => (
-                  <span key={p.id} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: C.blueLt, color: C.blue, fontWeight: 500 }}>{p.name}</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:15, fontWeight:700 }}>{rbt.full_name}</div>
+              <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>RBT · Since {new Date(rbt.created_at).toLocaleDateString()}</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:8 }}>
+                {rbtPatients.length===0 ? <span style={{ fontSize:12, color:T.ink3 }}>No patients</span> : rbtPatients.map(p=>(
+                  <span key={p.id} style={{ fontSize:11, padding:"3px 10px", borderRadius:99, background:T.navyLt, color:T.navy, fontWeight:600 }}>{p.name}</span>
                 ))}
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: C.blue }}>{rbtPatients.length}</div>
-              <div style={{ fontSize: 11, color: C.grayMd }}>patients</div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:28, fontWeight:800, color:T.navy }}>{rbtPatients.length}</div>
+              <div style={{ fontSize:11, color:T.ink3 }}>patients</div>
             </div>
           </div>
         );
@@ -379,33 +366,28 @@ function RBTsTab({ rbts, assignments, patients }) {
   );
 }
 
-// ─── Sessions Tab ─────────────────────────────────────────────────────────────
 function SessionsTab({ sessions, patients, fmtHMS }) {
   return (
     <div>
-      <div style={{ fontSize: 13, color: C.grayMd, marginBottom: 14 }}>{sessions.length} recent sessions</div>
-      <div style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 14, overflow: "hidden" }}>
-        {sessions.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>No sessions recorded yet</div>
-        ) : sessions.map((s, i) => {
-          const patient = patients.find(p => p.id === s.patient_id);
+      <div style={{ fontSize:13, color:T.ink3, marginBottom:14, fontWeight:500 }}>{sessions.length} recent sessions</div>
+      <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
+        {sessions.length===0 ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>No sessions yet</div> :
+        sessions.map((s,i)=>{
+          const patient=patients.find(p=>p.id===s.patient_id);
           return (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: i < sessions.length - 1 ? "0.5px solid rgba(0,0,0,.06)" : "none" }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: patient?.color || C.blueMd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-                {patient?.initials || "?"}
+            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 20px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none" }}>
+              <div style={{ width:40, height:40, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                {patient?.initials||"?"}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{patient?.name || "Unknown patient"}</div>
-                <div style={{ fontSize: 11, color: C.grayMd }}>
-                  {new Date(s.started_at).toLocaleDateString()} · {new Date(s.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  {s.rbt_name && ` · RBT: ${s.rbt_name}`}
-                </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+                <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleDateString()} · {s.rbt_name&&`RBT: ${s.rbt_name}`}</div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{fmtHMS(s.duration_secs)}</div>
-                <div style={{ fontSize: 10, fontWeight: 500, color: s.documentation_status === "documented" ? C.teal : C.amber }}>
-                  {s.documentation_status === "documented" ? "✓ Documented" : "⏳ Pending"}
-                </div>
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:14, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
+                <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+                  {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+                </span>
               </div>
             </div>
           );
@@ -413,99 +395,75 @@ function SessionsTab({ sessions, patients, fmtHMS }) {
       </div>
     </div>
   );
-  function UsersTab({ showToast, reload }) {
+}
+
+function UsersTab({ showToast }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("pending");
 
-  const ROLES = ["rbt", "bcba", "clinical_director", "admin"];
-
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(()=>{ loadUsers(); },[]);
 
   const loadUsers = async () => {
     setLoading(true);
-    const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
-    setUsers(data || []);
-    setLoading(false);
+    const { data } = await supabase.from("profiles").select("*").order("created_at",{ascending:false});
+    setUsers(data||[]); setLoading(false);
   };
 
-  const approve = async (id) => {
-    await supabase.from("profiles").update({ approved: true }).eq("id", id);
-    showToast("User approved ✓");
-    loadUsers();
-  };
+  const approve    = async (id) => { await supabase.from("profiles").update({approved:true}).eq("id",id);  showToast("User approved ✓"); loadUsers(); };
+  const reject     = async (id) => { await supabase.from("profiles").update({approved:false}).eq("id",id); showToast("User rejected");   loadUsers(); };
+  const changeRole = async (id,role) => { await supabase.from("profiles").update({role}).eq("id",id); showToast("Role updated ✓"); loadUsers(); };
 
-  const reject = async (id) => {
-    await supabase.from("profiles").update({ approved: false }).eq("id", id);
-    showToast("User rejected");
-    loadUsers();
-  };
-
-  const changeRole = async (id, role) => {
-    await supabase.from("profiles").update({ role }).eq("id", id);
-    showToast("Role updated ✓");
-    loadUsers();
-  };
-
-  const pending = users.filter(u => !u.approved);
-  const approved = users.filter(u => u.approved);
-  const displayed = tab === "pending" ? pending : approved;
+  const pending  = users.filter(u=>!u.approved);
+  const approved = users.filter(u=>u.approved);
+  const displayed = tab==="pending" ? pending : approved;
 
   return (
     <div>
-      <div style={{ display: "flex", marginBottom: 16, borderBottom: "0.5px solid rgba(0,0,0,.1)" }}>
-        {[{ id: "pending", label: `Pending (${pending.length})` }, { id: "all", label: `Approved (${approved.length})` }].map(t => (
-          <div key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? C.blue : C.gray, borderBottom: tab === t.id ? `2px solid ${C.blue}` : "2px solid transparent", marginBottom: -1 }}>
+      <div style={{ display:"flex", marginBottom:20, borderBottom:`1px solid ${T.border}` }}>
+        {[{id:"pending",label:`Pending (${pending.length})`},{id:"all",label:`Approved (${approved.length})`}].map(t=>(
+          <div key={t.id} onClick={()=>setTab(t.id)}
+            style={{ padding:"8px 16px", cursor:"pointer", fontSize:13, fontWeight:tab===t.id?700:400, color:tab===t.id?T.navy:T.ink3, borderBottom:tab===t.id?`2px solid ${T.navy}`:"2px solid transparent", marginBottom:-1 }}>
             {t.label}
           </div>
         ))}
       </div>
-
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>Loading…</div>
-      ) : displayed.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>{tab === "pending" ? "✅" : "👥"}</div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>{tab === "pending" ? "No pending users" : "No approved users"}</div>
+      {loading ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>Loading…</div> :
+      displayed.length===0 ? (
+        <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>{tab==="pending"?"✅":"👥"}</div>
+          <div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>{tab==="pending"?"No pending users":"No approved users"}</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {displayed.map(user => (
-            <div key={user.id} style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.blueLt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: C.blue, flexShrink: 0 }}>
-                {user.full_name?.[0]?.toUpperCase() || "?"}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{user.full_name || "No name"}</div>
-                <div style={{ fontSize: 11, color: C.grayMd }}>{new Date(user.created_at).toLocaleDateString()}</div>
-              </div>
-              <select value={user.role} onChange={e => changeRole(user.id, e.target.value)}
-                style={{ fontSize: 11, fontWeight: 600, padding: "4px 8px", borderRadius: 8, border: "0.5px solid rgba(0,0,0,.15)", background: "#fafaf9", cursor: "pointer" }}>
-                {ROLES.map(r => <option key={r} value={r}>{r.replace("_", " ").toUpperCase()}</option>)}
-              </select>
-              {tab === "pending" ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => approve(user.id)}
-                    style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.teal, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                    Approve
-                  </button>
-                  <button onClick={() => reject(user.id)}
-                    style={{ padding: "7px 14px", borderRadius: 8, border: `0.5px solid rgba(163,45,45,.3)`, background: C.redLt, color: C.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                    Reject
-                  </button>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {displayed.map(u=>{
+            const rb = roleBadge[u.role]||{bg:T.bg2,color:T.ink3};
+            return (
+              <div key={u.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", gap:14 }}>
+                <div style={{ width:44, height:44, borderRadius:"50%", background:rb.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:rb.color, flexShrink:0 }}>
+                  {u.full_name?.[0]?.toUpperCase()||"?"}
                 </div>
-              ) : (
-                <button onClick={() => reject(user.id)}
-                  style={{ padding: "7px 14px", borderRadius: 8, border: "0.5px solid rgba(0,0,0,.15)", background: "transparent", color: C.red, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
-                  Revoke
-                </button>
-              )}
-            </div>
-          ))}
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:15, fontWeight:700 }}>{u.full_name||"No name"}</div>
+                  <div style={{ fontSize:11, color:T.ink3, marginTop:3 }}>Joined {new Date(u.created_at).toLocaleDateString()}</div>
+                </div>
+                <select value={u.role} onChange={e=>changeRole(u.id,e.target.value)}
+                  style={{ fontSize:12, fontWeight:600, padding:"6px 10px", borderRadius:8, border:`1px solid ${T.border2}`, background:rb.bg, color:rb.color, cursor:"pointer", outline:"none" }}>
+                  {ROLES.map(r=><option key={r} value={r}>{r.replace(/_/g," ").toUpperCase()}</option>)}
+                </select>
+                {tab==="pending" ? (
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button onClick={()=>approve(u.id)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:T.green, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>✓ Approve</button>
+                    <button onClick={()=>reject(u.id)} style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${T.red}30`, background:T.redLt, color:T.red, fontSize:13, fontWeight:600, cursor:"pointer" }}>✗ Reject</button>
+                  </div>
+                ) : (
+                  <button onClick={()=>reject(u.id)} style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${T.red}30`, background:T.redLt, color:T.red, fontSize:13, fontWeight:500, cursor:"pointer" }}>Revoke</button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
-}
 }

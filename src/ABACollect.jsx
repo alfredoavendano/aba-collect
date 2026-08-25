@@ -502,6 +502,27 @@ export default function App({ user, profile, onLogout }) {
   const toastRef = useRef(null);
 
   useEffect(()=>{ loadData(); },[]);
+  useEffect(() => {
+  window.history.pushState({ view: "session" }, "", window.location.href);
+}, []);
+
+useEffect(() => {
+  if (view !== "session") {
+    window.history.pushState({ view }, "", window.location.href);
+  }
+}, [view]);
+
+useEffect(() => {
+  const handlePopState = (e) => {
+    if (e.state?.view) {
+      setView(e.state.view);
+    } else {
+      window.history.pushState({ view }, "", window.location.href);
+    }
+  };
+  window.addEventListener("popstate", handlePopState);
+  return () => window.removeEventListener("popstate", handlePopState);
+}, [view]);
   useEffect(()=>{ loadPendingSessions(); },[selectedPatientId]);
 
   const loadData = async () => {

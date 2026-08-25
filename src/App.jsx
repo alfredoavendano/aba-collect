@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
 import ABACollect from "./ABACollect";
@@ -6,13 +7,25 @@ import AdminPanel from "./AdminPanel";
 import BCBAPanel from "./BCBAPanel";
 import SuperBCBAPanel from "./SuperBCBAPanel";
 
+function ProtectedApp({ user, profile, onLogout }) {
+  if (profile?.role === "admin") {
+    return <AdminPanel profile={profile} onLogout={onLogout} />;
+  }
+  if (profile?.role === "clinical_director") {
+    return <SuperBCBAPanel user={user} profile={profile} onLogout={onLogout} />;
+  }
+  if (profile?.role === "bcba") {
+    return <BCBAPanel user={user} profile={profile} onLogout={onLogout} />;
+  }
+  return <ABACollect user={user} profile={profile} onLogout={onLogout} />;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         const { data: prof } = await supabase
@@ -28,7 +41,6 @@ export default function App() {
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_OUT") {
         setUser(null);
@@ -51,24 +63,22 @@ export default function App() {
   };
 
   if (loading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 12, background: "#f5f4f0", fontFamily: "system-ui" }}>
-      <div style={{ fontSize: 36 }}>🧠</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: "#0F6E56" }}>Loading…</div>
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", flexDirection:"column", gap:12, background:"#F8F9FB", fontFamily:"system-ui" }}>
+      <div style={{ fontSize:24, fontWeight:800, color:"#0F2744" }}>ABA Collect</div>
+      <div style={{ fontSize:13, color:"#64748B" }}>Loading…</div>
     </div>
   );
 
-  if (!user) return <Auth onLogin={handleLogin} />;
-
-if (profile?.role === "admin") {
-  return <AdminPanel profile={profile} onLogout={handleLogout} />;
-}
-if (profile?.role === "clinical_director") {
-  return <SuperBCBAPanel user={user} profile={profile} onLogout={handleLogout} onManageUsers={() => setShowUserMgmt(true)} />;
-}
-
-if (profile?.role === "bcba") {
-  return <BCBAPanel user={user} profile={profile} onLogout={handleLogout} />;
-}
-return <ABACollect user={user} profile={profile} onLogout={handleLogout} />;
-
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={
+          user ? <Navigate to="/" replace /> : <Auth onLogin={handleLogin} />
+        }/>
+        <Route path="/*" element={
+          user ? <ProtectedApp user={user} profile={profile} onLogout={handleLogout} /> : <Navigate to="/login" replace />
+        }/>
+      </Routes>
+    </BrowserRouter>
+  );
 }
