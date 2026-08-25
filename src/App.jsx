@@ -4,6 +4,7 @@ import Auth from "./Auth";
 import ABACollect from "./ABACollect";
 import AdminPanel from "./AdminPanel";
 import BCBAPanel from "./BCBAPanel";
+import SuperBCBAPanel from "./SuperBCBAPanel";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -58,9 +59,13 @@ export default function App() {
 
   if (!user) return <Auth onLogin={handleLogin} />;
 
- if (profile?.role === "admin" || profile?.role === "super_bcba") {
+if (profile?.role === "admin") {
   return <AdminPanel profile={profile} onLogout={handleLogout} />;
 }
+if (profile?.role === "clinical_director") {
+  return <SuperBCBAPanel user={user} profile={profile} onLogout={handleLogout} />;
+}
+
 if (profile?.role === "bcba") {
   return <BCBAPanel user={user} profile={profile} onLogout={handleLogout} />;
 }

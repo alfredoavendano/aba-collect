@@ -9,7 +9,7 @@ const C = {
   gray: "#5F5E5A", grayLt: "#F1EFE8", grayMd: "#888780",
 };
 
-const ROLES = ["rbt", "bcba", "super_bcba", "admin"];
+const ROLES = ["rbt", "bcba", "clinical_director", "admin"];
 const ROLE_COLORS = {
   admin:      { bg: "#FCEBEB", color: "#A32D2D" },
   super_bcba: { bg: "#E6F1FB", color: "#185FA5" },
