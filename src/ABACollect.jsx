@@ -394,59 +394,149 @@ function ChartCard({ title, color, data, labels, targetVal, targetLabel, suffix=
 // ─── Dashboard view ───────────────────────────────────────────────────────────
 function DashboardView({ patient }) {
   const [sessions, setSessions] = useState([]);
-  useEffect(()=>{
-    if(!patient)return;
-    supabase.from('sessions').select('*').eq('patient_id',patient.id).order('started_at').then(({data})=>{ if(data)setSessions(data); });
-  },[patient]);
+  const [dataPoints, setDataPoints] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const HISTORY = [
-    {date:"5/14",sib:8,compliance:55,ontask:72,stereotypy:65},
-    {date:"5/16",sib:6,compliance:60,ontask:90,stereotypy:60},
-    {date:"5/19",sib:7,compliance:58,ontask:120,stereotypy:55},
-    {date:"5/21",sib:5,compliance:65,ontask:148,stereotypy:50},
-    {date:"5/22",sib:4,compliance:70,ontask:168,stereotypy:45},
-    {date:"5/23",sib:5,compliance:68,ontask:180,stereotypy:40},
-    {date:"5/24",sib:4,compliance:74,ontask:210,stereotypy:35},
-    {date:"5/25",sib:3,compliance:72,ontask:222,stereotypy:30},
-    {date:"5/26",sib:2,compliance:76,ontask:228,stereotypy:25},
-  ];
+  useEffect(() => {
+    if (!patient) return;
+    loadDashboard();
+  }, [patient]);
+
+  const loadDashboard = async () => {
+    setLoading(true);
+
+    const { data: sessionData } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('patient_id', patient.id)
+      .order('started_at', { ascending: true });
+
+    const { data: progData } = await supabase
+      .from('programs')
+      .select('*')
+      .eq('patient_id', patient.id)
+      .eq('status', 'active');
+
+    let dpData = [];
+if (sessionData?.length) {
+  const ids = sessionData.map(s => s.id);
+  const { data: fetchedDp } = await supabase
+    .from('data_points')
+    .select('*')
+    .in('session_id', ids)
+    .order('recorded_at', { ascending: true });
+  dpData = fetchedDp || [];
+}
+
+console.log("Sessions:", sessionData?.length, "Programs:", progData?.length, "DataPoints:", dpData.length);
+setSessions(sessionData || []);
+setPrograms(progData || []);
+setDataPoints(dpData);
+setLoading(false);
+  };
+
+  if (loading) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading analytics…</div>;
+
+  if (!sessions.length) return (
+    <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
+      <div style={{ fontSize:40, marginBottom:12 }}>📊</div>
+      <div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>No sessions yet</div>
+      <div style={{ fontSize:13, marginTop:6 }}>Start recording sessions to see analytics here</div>
+    </div>
+  );
+
+  const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
+
+  // Build per-session aggregates for each program
+  const getSeriesForProgram = (prog) => {
+    return sessions.map(session => {
+      const pts = dataPoints.filter(d => d.session_id === session.id && d.program_id === prog.id);
+      if (!pts.length) return { date: new Date(session.started_at).toLocaleDateString('en-US',{month:'numeric',day:'numeric'}), value: null };
+      let value;
+      if (prog.type === 'frequency') value = pts.length;
+      else if (prog.type === 'duration') value = pts.reduce((s,d) => s + (d.value||0), 0);
+      else if (prog.type === 'rate') {
+        const yes = pts.filter(d=>d.value===1).length;
+        value = pts.length > 0 ? Math.round((yes/pts.length)*100) : null;
+      }
+      else if (prog.type === 'latency') value = Math.round(pts.reduce((s,d)=>s+(d.value||0),0)/pts.length);
+      return { date: new Date(session.started_at).toLocaleDateString('en-US',{month:'numeric',day:'numeric'}), value };
+    }).filter(d => d.value !== null);
+  };
+
+  const totalSessions = sessions.length;
+  const documented = sessions.filter(s=>s.documentation_status==='documented').length;
+  const avgDuration = sessions.length ? Math.round(sessions.reduce((s,d)=>s+(d.duration_secs||0),0)/sessions.length) : 0;
+  const lastSession = sessions[sessions.length-1];
 
   const metrics = [
-    { label:"Sessions", value:sessions.length, color:T.navy },
-    { label:"Compliance", value:"74%", color:T.green },
-    { label:"On-task avg", value:"3:48", color:T.amber },
-    { label:"SIB trend", value:"↓75%", color:T.green },
+    { label:"Total sessions",     value:totalSessions, color:T.navy  },
+    { label:"Documented",         value:`${documented}/${totalSessions}`, color:T.green },
+    { label:"Avg duration",       value:fmtHMS(avgDuration), color:T.amber },
+    { label:"Last session",       value:lastSession ? new Date(lastSession.started_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : "—", color:T.navy },
   ];
 
   return (
     <div>
+      {/* Patient header */}
       <Card style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20, padding:"16px 20px" }}>
         <div style={{ width:52, height:52, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
         <div>
           <div style={{ fontSize:18, fontWeight:700 }}>{patient.name}</div>
           <div style={{ fontSize:13, color:T.ink3, marginTop:2 }}>Age {age(patient.dob)} · {patient.diagnosis} · BCBA: {patient.bcba}</div>
         </div>
-        <div style={{ marginLeft:"auto", textAlign:"right" }}>
-          <div style={{ ...S.label }}>Total sessions</div>
-          <div style={{ fontSize:32, fontWeight:800, color:T.navy }}>{sessions.length}</div>
-        </div>
       </Card>
 
+      {/* Metrics */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
         {metrics.map((m,i)=>(
           <Card key={i} style={{ padding:"16px 20px" }}>
-            <div style={{ ...S.label, marginBottom:6 }}>{m.label}</div>
-            <div style={{ fontSize:28, fontWeight:800, color:m.color }}>{m.value}</div>
+            <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>{m.label}</div>
+            <div style={{ fontSize:28, fontWeight:800, color:m.color, letterSpacing:"-1px" }}>{m.value}</div>
           </Card>
         ))}
       </div>
 
+      {/* Charts per program */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-        <ChartCard title="SIB frequency" color={T.red} data={HISTORY.map(h=>h.sib)} labels={HISTORY.map(h=>h.date)} targetVal={2} targetLabel="Target <2"/>
-        <ChartCard title="Compliance rate" color={T.green} data={HISTORY.map(h=>h.compliance)} labels={HISTORY.map(h=>h.date)} targetVal={80} targetLabel="Target >80%" suffix="%"/>
-        <ChartCard title="On-task duration (s)" color={T.amber} data={HISTORY.map(h=>h.ontask)} labels={HISTORY.map(h=>h.date)} targetVal={300} targetLabel="Target >300s"/>
-        <ChartCard title="Stereotypy (%)" color={T.purple} data={HISTORY.map(h=>h.stereotypy)} labels={HISTORY.map(h=>h.date)} targetVal={20} targetLabel="Target <20%" suffix="%"/>
+        {programs.map(prog => {
+          const series = getSeriesForProgram(enrichProg(prog));
+          const ep = enrichProg(prog);
+          const suffix = prog.type==='rate' ? '%' : prog.type==='duration' ? 's' : '';
+          return (
+            <ChartCard
+              key={prog.id}
+              title={prog.name}
+              color={ep.color}
+              data={series.map(d=>d.value)}
+              labels={series.map(d=>d.date)}
+              targetVal={prog.target_val || 0}
+              targetLabel={prog.target || ""}
+              suffix={suffix}
+            />
+          );
+        })}
       </div>
+
+      {/* Session log */}
+      <Card style={{ marginTop:14 }}>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>Session history</div>
+        {sessions.slice().reverse().slice(0,8).map((s,i,arr)=>(
+          <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none" }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+              <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>{s.rbt_name} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:13, fontWeight:600 }}>{fmtHMS(s.duration_secs)}</div>
+              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </Card>
     </div>
   );
 }
