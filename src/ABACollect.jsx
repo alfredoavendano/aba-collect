@@ -739,18 +739,18 @@ useEffect(() => {
           )}
         </div>
 
-        <div style={{padding:"12px 12px",flex:1}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"8px 8px 6px",fontWeight:700}}>Workspace</div>
+<div style={{padding:"8px 12px",flex:1,overflowY:"auto",minHeight:0}}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"8px 8px 6px",fontWeight:700}}>Workspace</div>
           {NAV.slice(0,3).map(n=>(
             <div key={n.id} onClick={()=>setView(n.id)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s"}}>
+              style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s"}}>
               <span style={{fontSize:14,opacity:view===n.id?1:.7}}>{n.icon}</span>{n.label}
             </div>
           ))}
           <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"14px 8px 6px",fontWeight:700}}>Analysis</div>
           {NAV.slice(3).map(n=>(
             <div key={n.id} onClick={()=>setView(n.id)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s"}}>
+              style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s"}}>
               <span style={{fontSize:14,opacity:view===n.id?1:.7}}>{n.icon}</span>{n.label}
             </div>
           ))}

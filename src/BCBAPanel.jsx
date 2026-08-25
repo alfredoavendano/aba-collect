@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import TemplateManager from "./TemplateManager";
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -80,11 +81,12 @@ export default function BCBAPanel({ user, profile, onLogout }) {
   const getRBTsForPatient = (pid) => assignments.filter(a=>a.patient_id===pid).map(a=>a.rbt_id);
   const getPatientsForRBT = (rid) => assignments.filter(a=>a.rbt_id===rid).map(a=>a.patient_id);
 
-  const NAV = [
-    {id:"patients",label:"My patients",icon:"👤"},
-    {id:"rbts",label:"My RBTs",icon:"👥"},
-    {id:"sessions",label:"Recent sessions",icon:"📋"},
-  ];
+const NAV = [
+  {id:"patients",  label:"My patients",   icon:"👤"},
+  {id:"rbts",      label:"My RBTs",       icon:"👥"},
+  {id:"templates", label:"Templates",     icon:"📝"},
+  {id:"sessions",  label:"Recent sessions",icon:"📋"},
+];
 
   return (
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
@@ -108,10 +110,10 @@ export default function BCBAPanel({ user, profile, onLogout }) {
           )}
         </div>
 
-        <div style={{ padding:"16px 12px", flex:1, overflowY:"auto" }}>
+        <div style={{ padding:"8px 12px", flex:1, overflowY:"auto" }}>
           {NAV.map(n=>(
             <div key={n.id} onClick={()=>setTab(n.id)}
-              style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:tab===n.id?700:400, color:tab===n.id?"#fff":"rgba(255,255,255,.6)", background:tab===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:3, transition:"all .15s" }}>
+              style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 12px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:tab===n.id?700:400, color:tab===n.id?"#fff":"rgba(255,255,255,.6)", background:tab===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:3, transition:"all .15s" }}>
               <span>{n.icon}</span>{n.label}
             </div>
           ))}
@@ -145,9 +147,11 @@ export default function BCBAPanel({ user, profile, onLogout }) {
             <PatientsTab patients={patients} rbts={rbts} getRBTsForPatient={getRBTsForPatient} onAssign={assignRBT} onUnassign={unassignRBT} expanded={expanded} setExpanded={setExpanded} />
           ) : tab==="rbts" ? (
             <RBTsTab rbts={rbts} patients={patients} getPatientsForRBT={getPatientsForRBT} />
-          ) : (
-            <SessionsTab userId={user.id} patients={patients} />
-          )}
+          ) : tab==="templates" ? (
+  <TemplateManager user={user} patients={patients} showToast={showToast} />
+) : (
+  <SessionsTab userId={user.id} patients={patients} />
+)}
         </div>
       </div>
 
