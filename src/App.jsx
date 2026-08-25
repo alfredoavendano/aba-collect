@@ -63,7 +63,7 @@ if (profile?.role === "admin") {
   return <AdminPanel profile={profile} onLogout={handleLogout} />;
 }
 if (profile?.role === "clinical_director") {
-  return <SuperBCBAPanel user={user} profile={profile} onLogout={handleLogout} />;
+  return <SuperBCBAPanel user={user} profile={profile} onLogout={handleLogout} onManageUsers={() => setShowUserMgmt(true)} />;
 }
 
 if (profile?.role === "bcba") {

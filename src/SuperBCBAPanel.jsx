@@ -61,13 +61,14 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
     return `${String(Math.floor(secs/3600)).padStart(2,"0")}:${String(Math.floor((secs%3600)/60)).padStart(2,"0")}:${String(secs%60).padStart(2,"0")}`;
   };
 
-  const NAV = [
-    { id: "overview", label: "Overview", icon: "📊" },
-    { id: "patients", label: "All patients", icon: "👤" },
-    { id: "bcbas", label: "BCBAs", icon: "🧠" },
-    { id: "rbts", label: "RBTs", icon: "👥" },
-    { id: "sessions", label: "All sessions", icon: "📋" },
-  ];
+const NAV = [
+  { id: "overview", label: "Overview", icon: "📊" },
+  { id: "patients", label: "All patients", icon: "👤" },
+  { id: "bcbas", label: "BCBAs", icon: "🧠" },
+  { id: "rbts", label: "RBTs", icon: "👥" },
+  { id: "sessions", label: "All sessions", icon: "📋" },
+  { id: "users", label: "User management", icon: "🔐" },
+];
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans', system-ui, sans-serif", background: "#f5f4f0" }}>
@@ -133,6 +134,8 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
             <RBTsTab rbts={rbts} assignments={assignments} patients={patients} />
           ) : tab === "sessions" ? (
             <SessionsTab sessions={sessions} patients={patients} fmtHMS={fmtHMS} />
+          ) : tab === "users" ? (
+             <UsersTab showToast={showToast} reload={loadData} />
           ) : null}
         </div>
       </div>
@@ -410,4 +413,99 @@ function SessionsTab({ sessions, patients, fmtHMS }) {
       </div>
     </div>
   );
+  function UsersTab({ showToast, reload }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("pending");
+
+  const ROLES = ["rbt", "bcba", "clinical_director", "admin"];
+
+  useEffect(() => { loadUsers(); }, []);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    setUsers(data || []);
+    setLoading(false);
+  };
+
+  const approve = async (id) => {
+    await supabase.from("profiles").update({ approved: true }).eq("id", id);
+    showToast("User approved ✓");
+    loadUsers();
+  };
+
+  const reject = async (id) => {
+    await supabase.from("profiles").update({ approved: false }).eq("id", id);
+    showToast("User rejected");
+    loadUsers();
+  };
+
+  const changeRole = async (id, role) => {
+    await supabase.from("profiles").update({ role }).eq("id", id);
+    showToast("Role updated ✓");
+    loadUsers();
+  };
+
+  const pending = users.filter(u => !u.approved);
+  const approved = users.filter(u => u.approved);
+  const displayed = tab === "pending" ? pending : approved;
+
+  return (
+    <div>
+      <div style={{ display: "flex", marginBottom: 16, borderBottom: "0.5px solid rgba(0,0,0,.1)" }}>
+        {[{ id: "pending", label: `Pending (${pending.length})` }, { id: "all", label: `Approved (${approved.length})` }].map(t => (
+          <div key={t.id} onClick={() => setTab(t.id)}
+            style={{ padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? C.blue : C.gray, borderBottom: tab === t.id ? `2px solid ${C.blue}` : "2px solid transparent", marginBottom: -1 }}>
+            {t.label}
+          </div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>Loading…</div>
+      ) : displayed.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 40, color: C.grayMd }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>{tab === "pending" ? "✅" : "👥"}</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{tab === "pending" ? "No pending users" : "No approved users"}</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {displayed.map(user => (
+            <div key={user.id} style={{ background: "#fff", border: "0.5px solid rgba(0,0,0,.12)", borderRadius: 12, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.blueLt, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: C.blue, flexShrink: 0 }}>
+                {user.full_name?.[0]?.toUpperCase() || "?"}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{user.full_name || "No name"}</div>
+                <div style={{ fontSize: 11, color: C.grayMd }}>{new Date(user.created_at).toLocaleDateString()}</div>
+              </div>
+              <select value={user.role} onChange={e => changeRole(user.id, e.target.value)}
+                style={{ fontSize: 11, fontWeight: 600, padding: "4px 8px", borderRadius: 8, border: "0.5px solid rgba(0,0,0,.15)", background: "#fafaf9", cursor: "pointer" }}>
+                {ROLES.map(r => <option key={r} value={r}>{r.replace("_", " ").toUpperCase()}</option>)}
+              </select>
+              {tab === "pending" ? (
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => approve(user.id)}
+                    style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: C.teal, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    Approve
+                  </button>
+                  <button onClick={() => reject(user.id)}
+                    style={{ padding: "7px 14px", borderRadius: 8, border: `0.5px solid rgba(163,45,45,.3)`, background: C.redLt, color: C.red, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    Reject
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => reject(user.id)}
+                  style={{ padding: "7px 14px", borderRadius: 8, border: "0.5px solid rgba(0,0,0,.15)", background: "transparent", color: C.red, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+                  Revoke
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 }
