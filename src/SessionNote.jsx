@@ -34,11 +34,20 @@ export default function SessionNote({ session, patient, programs, user, onComple
   useEffect(() => { loadTemplate(); }, [patient]);
 
   const loadTemplate = async () => {
-    setLoading(true);
+  setLoading(true);
+  // Find template assigned to this patient via new many-to-many table
+  const { data: assignment } = await supabase
+    .from("template_patient_assignments")
+    .select("template_id")
+    .eq("patient_id", patient.id)
+    .limit(1)
+    .single();
+
+  if (assignment) {
     const { data: tmpl } = await supabase
       .from("note_templates")
       .select("*")
-      .eq("patient_id", patient.id)
+      .eq("id", assignment.template_id)
       .single();
 
     if (tmpl) {
@@ -53,8 +62,9 @@ export default function SessionNote({ session, patient, programs, user, onComple
       (secs || []).forEach(s => { initial[s.id] = ""; });
       setResponses(initial);
     }
-    setLoading(false);
-  };
+  }
+  setLoading(false);
+};
 
   const handleSubmit = async () => {
     // Validate required sections
