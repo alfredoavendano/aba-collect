@@ -80,6 +80,16 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(""),2500); };
 
+  const createPatient = async (patientData) => {
+  const { error } = await supabase.from("patients").insert({
+    ...patientData,
+    organization_id: profile.organization_id,
+  });
+  if (error) { showToast("Error creating patient: " + error.message); return; }
+  showToast("Patient created ✓");
+  loadData();
+};
+
   const assignPatientToBCBA = async (patientId, bcbaId) => {
     await supabase.from("patients").update({ bcba_id:bcbaId }).eq("id",patientId);
     showToast("Patient assigned to BCBA ✓"); loadData();
@@ -160,8 +170,7 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
           ) : tab==="overview" ? (
             <OverviewTab patients={patients} bcbas={bcbas} rbts={rbts} sessions={sessions} fmtHMS={fmtHMS} />
           ) : tab==="patients" ? (
-            <PatientsTab patients={patients} bcbas={bcbas} assignments={assignments} rbts={rbts} onAssign={assignPatientToBCBA} />
-          ) : tab==="bcbas" ? (
+            <PatientsTab patients={patients} bcbas={bcbas} assignments={assignments} rbts={rbts} onAssign={assignPatientToBCBA} onCreate={createPatient} />          ) : tab==="bcbas" ? (
             <BCBAsTab bcbas={bcbas} patients={patients} />
           ) : tab==="rbts" ? (
             <RBTsTab rbts={rbts} assignments={assignments} patients={patients} />
@@ -252,12 +261,22 @@ function OverviewTab({ patients, bcbas, rbts, sessions, fmtHMS }) {
   );
 }
 
-function PatientsTab({ patients, bcbas, assignments, rbts, onAssign }) {
+function PatientsTab({ patients, bcbas, assignments, rbts, onAssign, onCreate }) {
+  const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const getRBT = (pid) => { const a=assignments.find(a=>a.patient_id===pid); return a?rbts.find(r=>r.id===a.rbt_id):null; };
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-      <div style={{ fontSize:13, color:T.ink3, fontWeight:500, marginBottom:4 }}>{patients.length} patients total</div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div style={{ fontSize:13, color:T.ink3, fontWeight:500 }}>{patients.length} patients total</div>
+        <button onClick={() => setShowForm(true)}
+          style={{ padding:"8px 16px", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+          + New patient
+        </button>
+      </div>
+      {showForm && (
+  <NewPatientForm onClose={() => setShowForm(false)} onCreate={async (data) => { await onCreate(data); setShowForm(false); }} />
+)}
       {patients.map(patient=>{
         const bcba = bcbas.find(b=>b.id===patient.bcba_id);
         const rbt = getRBT(patient.id);
@@ -478,6 +497,75 @@ function UsersTab({ showToast }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+
+function NewPatientForm({ onClose, onCreate }) {
+  const [name, setName] = useState("");
+  const [initials, setInitials] = useState("");
+  const [dob, setDob] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [color, setColor] = useState("#378ADD");
+  const [saving, setSaving] = useState(false);
+
+  const COLORS = ["#378ADD","#1D9E75","#E24B4A","#EF9F27","#7F77DD","#D85A30"];
+
+  const handleSubmit = async () => {
+    if (!name || !initials) return;
+    setSaving(true);
+    await onCreate({ name, initials, dob: dob||null, diagnosis, color });
+    setSaving(false);
+  };
+
+  const inputStyle = {
+    width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13,
+    border:`1px solid ${T.border2}`, background:T.white, outline:"none",
+    color:T.ink, fontFamily:"inherit",
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:460, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+        <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>New patient</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Full name *</div>
+            <input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} placeholder="e.g. John Smith" />
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Initials *</div>
+            <input value={initials} onChange={e=>setInitials(e.target.value.toUpperCase())} style={inputStyle} placeholder="JS" maxLength={3} />
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Date of birth</div>
+            <input type="date" value={dob} onChange={e=>setDob(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Diagnosis</div>
+            <input value={diagnosis} onChange={e=>setDiagnosis(e.target.value)} style={inputStyle} placeholder="e.g. ASD Level 2" />
+          </div>
+        </div>
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Color</div>
+          <div style={{ display:"flex", gap:8 }}>
+            {COLORS.map(c=>(
+              <div key={c} onClick={()=>setColor(c)}
+                style={{ width:32, height:32, borderRadius:"50%", background:c, cursor:"pointer", border:`3px solid ${color===c?"#000":"transparent"}`, transition:"border .15s" }}/>
+            ))}
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={!name||!initials||saving}
+            style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer", opacity:!name||!initials?.4:1 }}>
+            {saving?"Creating…":"Create patient"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
