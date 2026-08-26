@@ -78,15 +78,23 @@ export default function BCBAPanel({ user, profile, onLogout }) {
     showToast("RBT removed"); loadData();
   };
 
+  const editPatient = async (patientData) => {
+    const { id, ...data } = patientData;
+    const { error } = await supabase.from("patients").update(data).eq("id", id);
+    if (error) { showToast("Error updating patient: " + error.message); return; }
+    showToast("Patient updated ✓");
+    loadData();
+  };
+
   const getRBTsForPatient = (pid) => assignments.filter(a=>a.patient_id===pid).map(a=>a.rbt_id);
   const getPatientsForRBT = (rid) => assignments.filter(a=>a.rbt_id===rid).map(a=>a.patient_id);
 
-const NAV = [
-  {id:"patients",  label:"My patients",   icon:"👤"},
-  {id:"rbts",      label:"My RBTs",       icon:"👥"},
-  {id:"templates", label:"Templates",     icon:"📝"},
-  {id:"sessions",  label:"Recent sessions",icon:"📋"},
-];
+  const NAV = [
+    {id:"patients",  label:"My patients",    icon:"👤"},
+    {id:"rbts",      label:"My RBTs",        icon:"👥"},
+    {id:"templates", label:"Templates",      icon:"📝"},
+    {id:"sessions",  label:"Recent sessions",icon:"📋"},
+  ];
 
   return (
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
@@ -131,7 +139,7 @@ const NAV = [
         <div style={{ padding:"16px 28px", borderBottom:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div>
             <div style={{ fontSize:20, fontWeight:800, color:T.ink, letterSpacing:"-.5px" }}>
-              {tab==="patients"?"My patients":tab==="rbts"?"My RBTs":"Recent sessions"}
+              {tab==="patients"?"My patients":tab==="rbts"?"My RBTs":tab==="templates"?"Templates":"Recent sessions"}
             </div>
             <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>
               {tab==="patients"?`${patients.length} patients`:tab==="rbts"?`${rbts.length} RBTs`:""}
@@ -144,14 +152,14 @@ const NAV = [
           {loading ? (
             <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div>
           ) : tab==="patients" ? (
-            <PatientsTab patients={patients} rbts={rbts} getRBTsForPatient={getRBTsForPatient} onAssign={assignRBT} onUnassign={unassignRBT} expanded={expanded} setExpanded={setExpanded} />
+            <PatientsTab patients={patients} rbts={rbts} getRBTsForPatient={getRBTsForPatient} onAssign={assignRBT} onUnassign={unassignRBT} onEdit={editPatient} expanded={expanded} setExpanded={setExpanded} />
           ) : tab==="rbts" ? (
             <RBTsTab rbts={rbts} patients={patients} getPatientsForRBT={getPatientsForRBT} />
           ) : tab==="templates" ? (
-  <TemplateManager user={user} patients={patients} showToast={showToast} />
-) : (
-  <SessionsTab userId={user.id} patients={patients} />
-)}
+            <TemplateManager user={user} patients={patients} showToast={showToast} />
+          ) : (
+            <SessionsTab userId={user.id} patients={patients} />
+          )}
         </div>
       </div>
 
@@ -162,7 +170,9 @@ const NAV = [
   );
 }
 
-function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, expanded, setExpanded }) {
+function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, onEdit, expanded, setExpanded }) {
+  const [editingPatient, setEditingPatient] = useState(null);
+
   if(patients.length===0) return (
     <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
       <div style={{ fontSize:40, marginBottom:12 }}>👤</div>
@@ -170,8 +180,16 @@ function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, 
       <div style={{ fontSize:13, marginTop:6 }}>Ask your Clinical Director to assign patients to your account</div>
     </div>
   );
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      {editingPatient && (
+        <EditPatientForm
+          patient={editingPatient}
+          onClose={() => setEditingPatient(null)}
+          onSave={async (data) => { await onEdit(data); setEditingPatient(null); }}
+        />
+      )}
       {patients.map(patient=>{
         const assignedIds = getRBTsForPatient(patient.id);
         const assignedRBTs = rbts.filter(r=>assignedIds.includes(r.id));
@@ -190,7 +208,13 @@ function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, 
                 <div style={{ fontSize:11, color:T.ink3, fontWeight:600, textTransform:"uppercase", letterSpacing:".06em" }}>RBT assigned</div>
                 <div style={{ fontSize:24, fontWeight:800, color:assignedRBTs.length>0?T.green:T.amber }}>{assignedRBTs.length}</div>
               </div>
-              <span style={{ fontSize:16, color:T.ink3 }}>{isOpen?"▲":"▼"}</span>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <button onClick={e=>{ e.stopPropagation(); setEditingPatient(patient); }}
+                  style={{ fontSize:12, padding:"6px 12px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                  ✏️ Edit
+                </button>
+                <span style={{ fontSize:16, color:T.ink3 }}>{isOpen?"▲":"▼"}</span>
+              </div>
             </div>
             {isOpen && (
               <div style={{ padding:"0 20px 16px", borderTop:`1px solid ${T.border}` }}>
@@ -315,6 +339,74 @@ function SessionsTab({ userId, patients }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function EditPatientForm({ patient, onClose, onSave }) {
+  const [name, setName] = useState(patient.name||"");
+  const [initials, setInitials] = useState(patient.initials||"");
+  const [dob, setDob] = useState(patient.dob?.split("T")[0]||"");
+  const [diagnosis, setDiagnosis] = useState(patient.diagnosis||"");
+  const [color, setColor] = useState(patient.color||"#378ADD");
+  const [saving, setSaving] = useState(false);
+
+  const COLORS = ["#378ADD","#1D9E75","#E24B4A","#EF9F27","#7F77DD","#D85A30"];
+
+  const handleSubmit = async () => {
+    if (!name || !initials) return;
+    setSaving(true);
+    await onSave({ id:patient.id, name, initials, dob:dob||null, diagnosis, color });
+    setSaving(false);
+  };
+
+  const inputStyle = {
+    width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13,
+    border:`1px solid ${T.border2}`, background:T.white, outline:"none",
+    color:T.ink, fontFamily:"inherit",
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:460, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+        <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>Edit patient</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Full name *</div>
+            <input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} placeholder="e.g. John Smith" />
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Initials *</div>
+            <input value={initials} onChange={e=>setInitials(e.target.value.toUpperCase())} style={inputStyle} placeholder="JS" maxLength={3} />
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Date of birth</div>
+            <input type="date" value={dob} onChange={e=>setDob(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Diagnosis</div>
+            <input value={diagnosis} onChange={e=>setDiagnosis(e.target.value)} style={inputStyle} placeholder="e.g. ASD Level 2" />
+          </div>
+        </div>
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Color</div>
+          <div style={{ display:"flex", gap:8 }}>
+            {COLORS.map(c=>(
+              <div key={c} onClick={()=>setColor(c)}
+                style={{ width:32, height:32, borderRadius:"50%", background:c, cursor:"pointer", border:`3px solid ${color===c?"#000":"transparent"}`, transition:"border .15s" }}/>
+            ))}
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={!name||!initials||saving}
+            style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+            {saving?"Saving…":"Save changes"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
