@@ -310,13 +310,32 @@ export default function IndependentRBT({ user, profile, onLogout }) {
     toastRef.current=setTimeout(()=>setToast(""),2500);
   },[]);
 
-  const savePatient = async (data) => {
+const savePatient = async (data) => {
     if(data.id) {
       const { id, ...rest } = data;
       await supabase.from("patients").update(rest).eq("id",id);
       showToast("Patient updated ✓");
     } else {
-      await supabase.from("patients").insert({ ...data, rbt_id:user.id });
+      // Create patient
+      const { data: newPatient } = await supabase
+        .from("patients")
+        .insert({ ...data, rbt_id:user.id })
+        .select().single();
+
+      // Auto-assign default template
+      if(newPatient) {
+        const { data: tmpl } = await supabase
+          .from("note_templates")
+          .select("id")
+          .eq("created_by", user.id)
+          .single();
+        if(tmpl) {
+          await supabase.from("template_patient_assignments").insert({
+            template_id: tmpl.id,
+            patient_id: newPatient.id
+          });
+        }
+      }
       showToast("Patient created ✓");
     }
     loadData();
