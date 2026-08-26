@@ -65,8 +65,23 @@ export default function AdminPanel({ profile, onLogout }) {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
   const approve = async (id) => { await supabase.from("profiles").update({ approved: true }).eq("id", id); showToast("User approved ✓"); loadUsers(); };
   const reject  = async (id) => { await supabase.from("profiles").update({ approved: false }).eq("id", id); showToast("User rejected"); loadUsers(); };
-  const changeRole = async (id, role) => { await supabase.from("profiles").update({ role }).eq("id", id); showToast("Role updated ✓"); loadUsers(); };
-
+  const changeRole = async (id, role) => {
+  // Check if changing away from RBT with patients assigned
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", id).single();
+  if (profile?.role === "rbt" && role !== "rbt") {
+    const { data: assignments } = await supabase
+      .from("patient_assignments")
+      .select("id")
+      .eq("rbt_id", id);
+    if (assignments?.length > 0) {
+      showToast(`⚠ Cannot change role — this RBT has ${assignments.length} patient(s) assigned. Remove assignments first.`);
+      return;
+    }
+  }
+  await supabase.from("profiles").update({ role }).eq("id", id);
+  showToast("Role updated ✓");
+  loadUsers();
+};
   const pending  = users.filter(u => !u.approved);
   const approved = users.filter(u => u.approved);
   const displayed = tab === "pending" ? pending : approved;
@@ -149,7 +164,7 @@ export default function AdminPanel({ profile, onLogout }) {
                       <div style={{ fontSize:15, fontWeight:700, color:T.ink }}>{user.full_name||"No name"}</div>
                       <div style={{ fontSize:11, color:T.ink3, marginTop:3 }}>Joined {new Date(user.created_at).toLocaleDateString()}</div>
                     </div>
-                    <select value={user.role} onChange={e => changeRole(user.id, e.target.value)}
+                    <select key={user.role} value={user.role} onChange={e => changeRole(user.id, e.target.value)}
                       style={{ fontSize:12, fontWeight:600, padding:"6px 10px", borderRadius:8, border:`1px solid ${T.border2}`, background:rb.bg, color:rb.color, cursor:"pointer", outline:"none" }}>
                       {ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g," ").toUpperCase()}</option>)}
                     </select>
