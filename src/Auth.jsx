@@ -5,6 +5,7 @@ const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
   green:"#0D6E4E",greenLt:"#E6F5F0",greenMd:"#18A274",
   red:"#B91C1C",redLt:"#FEF2F2",
+  amber:"#92400E",amberLt:"#FFFBEB",
   ink:"#0F172A",ink2:"#334155",ink3:"#64748B",
   bg:"#F8F9FB",white:"#FFFFFF",
   border:"rgba(15,23,42,.08)",border2:"rgba(15,23,42,.14)",
@@ -24,6 +25,7 @@ export default function Auth({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [accountType, setAccountType] = useState("organization"); // organization | independent
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -38,11 +40,14 @@ export default function Auth({ onLogin }) {
 
     if (profileError) { setError("Error loading profile: " + profileError.message); setLoading(false); return; }
     if (!profile)     { setError("Profile not found."); setLoading(false); return; }
-    if (!profile.approved) {
+
+    // Independent RBTs don't need approval
+    if (!profile.approved && !profile.is_independent) {
       await supabase.auth.signOut();
-      setError("Your account is pending approval. Please wait for your BCBA to approve you.");
+      setError("Your account is pending approval from your Clinical Director.");
       setLoading(false); return;
     }
+
     onLogin(data.user, profile);
     setLoading(false);
   };
@@ -50,10 +55,28 @@ export default function Auth({ onLogin }) {
   const handleRegister = async () => {
     if (!fullName.trim()) { setError("Please enter your full name."); return; }
     setLoading(true); setError("");
-    const body = { email, password, data: { full_name: fullName } };
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+
+    const isIndependent = accountType === "independent";
+
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: {
+        data: {
+          full_name: fullName,
+          is_independent: isIndependent,
+        },
+        // Only send confirmation email for independent RBTs
+        emailRedirectTo: isIndependent ? `${window.location.origin}/?verified=true` : undefined,
+      }
+    });
+
     if (error) { setError(error.message); setLoading(false); return; }
-    setSuccess("Account created! Your BCBA will approve your access shortly.");
+
+    if (isIndependent) {
+      setSuccess("Check your email to verify your account. Once verified, you can sign in.");
+    } else {
+      setSuccess("Account created! Your Clinical Director will approve your access shortly.");
+    }
     setLoading(false);
   };
 
@@ -81,6 +104,7 @@ export default function Auth({ onLogin }) {
             { icon:"📊", text:"BCBA analytics dashboard" },
             { icon:"⌚", text:"Apple Watch integration" },
             { icon:"📝", text:"Structured session documentation" },
+            { icon:"🔒", text:"Independent RBT accounts" },
           ].map((f,i)=>(
             <div key={i} style={{ display:"flex", alignItems:"center", gap:12 }}>
               <div style={{ width:36, height:36, borderRadius:8, background:"rgba(255,255,255,.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{f.icon}</div>
@@ -92,7 +116,7 @@ export default function Auth({ onLogin }) {
 
       {/* Right panel */}
       <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:40 }}>
-        <div style={{ width:"100%", maxWidth:380 }}>
+        <div style={{ width:"100%", maxWidth:400 }}>
           <div style={{ fontSize:24, fontWeight:800, color:T.ink, letterSpacing:"-.5px", marginBottom:6 }}>
             {mode==="login" ? "Welcome back" : "Create account"}
           </div>
@@ -109,6 +133,37 @@ export default function Auth({ onLogin }) {
               </div>
             ))}
           </div>
+
+          {/* Account type selector — only on register */}
+          {mode==="register" && (
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Account type</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                <div onClick={()=>setAccountType("organization")}
+                  style={{ padding:"12px 14px", borderRadius:10, border:`2px solid ${accountType==="organization"?T.navy:T.border2}`, background:accountType==="organization"?T.navyLt:T.white, cursor:"pointer", transition:"all .15s" }}>
+                  <div style={{ fontSize:20, marginBottom:6 }}>🏢</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:accountType==="organization"?T.navy:T.ink }}>Organization</div>
+                  <div style={{ fontSize:11, color:T.ink3, marginTop:3, lineHeight:1.4 }}>Join an ABA clinic or therapy center</div>
+                </div>
+                <div onClick={()=>setAccountType("independent")}
+                  style={{ padding:"12px 14px", borderRadius:10, border:`2px solid ${accountType==="independent"?T.green:T.border2}`, background:accountType==="independent"?T.greenLt:T.white, cursor:"pointer", transition:"all .15s" }}>
+                  <div style={{ fontSize:20, marginBottom:6 }}>🧑‍💼</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:accountType==="independent"?T.green:T.ink }}>Independent RBT</div>
+                  <div style={{ fontSize:11, color:T.ink3, marginTop:3, lineHeight:1.4 }}>Freelance RBT, manage your own clients</div>
+                </div>
+              </div>
+              {accountType==="independent" && (
+                <div style={{ marginTop:10, padding:"10px 14px", background:T.greenLt, borderRadius:8, fontSize:12, color:T.green, fontWeight:500 }}>
+                  ✓ Email verification required — no approval needed, instant access
+                </div>
+              )}
+              {accountType==="organization" && (
+                <div style={{ marginTop:10, padding:"10px 14px", background:T.navyLt, borderRadius:8, fontSize:12, color:T.navy, fontWeight:500 }}>
+                  ✓ Your Clinical Director will approve your account
+                </div>
+              )}
+            </div>
+          )}
 
           {mode==="register" && (
             <input type="text" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)}

@@ -6,6 +6,7 @@ import ABACollect from "./ABACollect";
 import AdminPanel from "./AdminPanel";
 import BCBAPanel from "./BCBAPanel";
 import SuperBCBAPanel from "./SuperBCBAPanel";
+import IndependentRBT from "./IndependentRBT";
 
 function ProtectedApp({ user, profile, onLogout }) {
   if (profile?.role === "admin") {
@@ -17,7 +18,10 @@ function ProtectedApp({ user, profile, onLogout }) {
   if (profile?.role === "bcba") {
     return <BCBAPanel user={user} profile={profile} onLogout={onLogout} />;
   }
-  return <ABACollect user={user} profile={profile} onLogout={onLogout} />;
+  if (profile?.is_independent) {
+  return <IndependentRBT user={user} profile={profile} onLogout={onLogout} />;
+}
+return <ABACollect user={user} profile={profile} onLogout={onLogout} />;
 }
 
 export default function App() {
