@@ -139,7 +139,7 @@ export default function SessionNote({ session, patient, programs, user, onComple
   );
 
   return (
-    <div style={{ maxWidth:760, margin:"0 auto" }}>
+    <div style={{ maxWidth:"100%", margin:"0 auto" }}>
 
       {/* Session summary header */}
       <Card style={{ marginBottom:20, padding:"16px 20px" }}>

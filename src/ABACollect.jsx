@@ -701,7 +701,7 @@ useEffect(() => {
   if(showSessionNote&&completedSession&&patient) return (
     <div style={{display:"flex",height:"100vh",fontFamily:"'Inter',system-ui,sans-serif",background:T.bg}}>
       <style>{CSS}</style>
-      <div style={{flex:1,overflowY:"auto",padding:32,maxWidth:860,margin:"0 auto",width:"100%"}}>
+      <div style={{flex:1,overflowY:"auto",padding:32,maxWidth:"100%",margin:"0 auto",width:"100%"}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:28}}>
           <div style={{fontSize:22,fontWeight:800,color:T.navy,letterSpacing:"-1px"}}>ABA Collect</div>
           <div style={{fontSize:13,color:T.ink3}}>— Session note</div>
