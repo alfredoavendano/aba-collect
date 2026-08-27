@@ -56,7 +56,7 @@ export default function BCBAPanel({ user, profile, onLogout }) {
     setLoading(true);
     const [pats, rbtData, assignData] = await Promise.all([
       supabase.from("patients").select("*").eq("bcba_id", user.id).order("name"),
-      supabase.from("profiles").select("*").eq("role","rbt").eq("approved",true).order("full_name"),
+      supabase.from("profiles").select("*").eq("role","rbt").eq("approved",true).eq("is_independent",false).order("full_name"),
       supabase.from("patient_assignments").select("*"),
     ]);
     setPatients(pats.data||[]);

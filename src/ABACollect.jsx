@@ -288,12 +288,13 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
 }
 
 // ─── Programs view ────────────────────────────────────────────────────────────
-function ProgramsView({ programs }) {
+function ProgramsView({ programs, profile }) {
+  const canManage = profile?.is_independent || profile?.role === 'bcba';
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
         <div style={{ fontSize:13, color:T.ink3, fontWeight:500 }}>{programs.length} active programs</div>
-        <Btn variant="primary" style={{ padding:"8px 16px" }}>+ Add program</Btn>
+        {canManage && <Btn variant="primary" style={{ padding:"8px 16px" }}>+ Add program</Btn>}
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
         {programs.map(prog=>(
@@ -318,7 +319,7 @@ function ProgramsView({ programs }) {
 }
 
 // ─── Patients view ────────────────────────────────────────────────────────────
-function PatientsView({ patients, programsByPatient, selectedId, onSelect }) {
+function PatientsView({ patients, programsByPatient, selectedId, onSelect, onSwitch }) {
   const [search, setSearch] = useState("");
   const filtered = patients.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()));
   return (
@@ -348,6 +349,10 @@ function PatientsView({ patients, programsByPatient, selectedId, onSelect }) {
                 {progs.slice(0,3).map(pr=><span key={pr.id} style={{ ...S.badge(T.ink3,T.bg2), fontSize:10 }}>{pr.name.split(" ")[0]}</span>)}
                 {progs.length>3&&<span style={{ ...S.badge(T.ink3,T.bg2), fontSize:10 }}>+{progs.length-3}</span>}
               </div>
+              <button onClick={()=>{ console.log("switch clicked", p.id); onSwitch && onSwitch(p.id); }}
+                style={{ width:"100%", padding:"7px 0", borderRadius:8, border:`1px solid ${selected?T.green:T.border2}`, background:selected?T.green:"transparent", color:selected?"#fff":T.ink2, fontSize:12, fontWeight:600, cursor:"pointer", marginTop:10 }}>
+                {selected ? "✓ Current patient" : "Switch to this patient"}
+              </button>
             </Card>
           );
         })}
@@ -799,9 +804,8 @@ useEffect(() => {
         {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:28}}>
           {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
-          {view==="programs"&&<ProgramsView programs={patientPrograms}/>}
-          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}
-          {view==="dashboard"&&<DashboardView patient={patient}/>}
+          {view==="programs"&&<ProgramsView programs={patientPrograms} profile={profile}/>}
+          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient}/>}
           {view==="reports"&&<ReportsView patient={patient}/>}
         </div>
 

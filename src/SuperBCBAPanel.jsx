@@ -66,7 +66,7 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
     const [pats, bcbaData, rbtData, assignData, sessionData] = await Promise.all([
       supabase.from("patients").select("*").order("name"),
       supabase.from("profiles").select("*").eq("role","bcba").eq("approved",true).order("full_name"),
-      supabase.from("profiles").select("*").eq("role","rbt").eq("approved",true).order("full_name"),
+      supabase.from("profiles").select("*").eq("role","rbt").eq("approved",true).eq("is_independent",false).order("full_name"),
       supabase.from("patient_assignments").select("*"),
       supabase.from("sessions").select("*").order("started_at",{ascending:false}).limit(20),
     ]);
