@@ -91,6 +91,7 @@ export default function BCBAPanel({ user, profile, onLogout }) {
 
   const NAV = [
     {id:"patients",  label:"My patients",    icon:"👤"},
+    {id:"programs",  label:"Programs",       icon:"🔬"},
     {id:"rbts",      label:"My RBTs",        icon:"👥"},
     {id:"templates", label:"Templates",      icon:"📝"},
     {id:"sessions",  label:"Recent sessions",icon:"📋"},
@@ -100,7 +101,6 @@ export default function BCBAPanel({ user, profile, onLogout }) {
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
       <style>{CSS}</style>
 
-      {/* Sidebar */}
       <div style={{ width:232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0 }}>
         <div style={{ padding:"24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)" }}>
           <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>
@@ -134,12 +134,11 @@ export default function BCBAPanel({ user, profile, onLogout }) {
         </div>
       </div>
 
-      {/* Main */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
         <div style={{ padding:"16px 28px", borderBottom:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div>
             <div style={{ fontSize:20, fontWeight:800, color:T.ink, letterSpacing:"-.5px" }}>
-              {tab==="patients"?"My patients":tab==="rbts"?"My RBTs":tab==="templates"?"Templates":"Recent sessions"}
+              {tab==="patients"?"My patients":tab==="programs"?"Programs":tab==="rbts"?"My RBTs":tab==="templates"?"Templates":"Recent sessions"}
             </div>
             <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>
               {tab==="patients"?`${patients.length} patients`:tab==="rbts"?`${rbts.length} RBTs`:""}
@@ -153,6 +152,8 @@ export default function BCBAPanel({ user, profile, onLogout }) {
             <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div>
           ) : tab==="patients" ? (
             <PatientsTab patients={patients} rbts={rbts} getRBTsForPatient={getRBTsForPatient} onAssign={assignRBT} onUnassign={unassignRBT} onEdit={editPatient} expanded={expanded} setExpanded={setExpanded} />
+          ) : tab==="programs" ? (
+            <ProgramsTab patients={patients} showToast={showToast} />
           ) : tab==="rbts" ? (
             <RBTsTab rbts={rbts} patients={patients} getPatientsForRBT={getPatientsForRBT} />
           ) : tab==="templates" ? (
@@ -170,6 +171,7 @@ export default function BCBAPanel({ user, profile, onLogout }) {
   );
 }
 
+// ─── Patients Tab ─────────────────────────────────────────────────────────────
 function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, onEdit, expanded, setExpanded }) {
   const [editingPatient, setEditingPatient] = useState(null);
 
@@ -184,11 +186,8 @@ function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
       {editingPatient && (
-        <EditPatientForm
-          patient={editingPatient}
-          onClose={() => setEditingPatient(null)}
-          onSave={async (data) => { await onEdit(data); setEditingPatient(null); }}
-        />
+        <EditPatientForm patient={editingPatient} onClose={() => setEditingPatient(null)}
+          onSave={async (data) => { await onEdit(data); setEditingPatient(null); }} />
       )}
       {patients.map(patient=>{
         const assignedIds = getRBTsForPatient(patient.id);
@@ -259,6 +258,244 @@ function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, 
   );
 }
 
+// ─── Programs Tab ─────────────────────────────────────────────────────────────
+function ProgramsTab({ patients, showToast }) {
+  const [selectedPatient, setSelectedPatient] = useState("all");
+  const [programs, setPrograms] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingProgram, setEditingProgram] = useState(null);
+
+  const typeInfo = {
+    frequency:{ label:"Frequency", color:T.red,   bg:T.redLt   },
+    duration: { label:"Duration",  color:T.amber, bg:T.amberLt },
+    rate:     { label:"Rate",      color:T.green, bg:T.greenLt },
+    latency:  { label:"Latency",   color:T.navy,  bg:T.navyLt  },
+  };
+
+  useEffect(() => { loadPrograms(); }, [selectedPatient]);
+
+  const loadPrograms = async () => {
+    setLoading(true);
+    const patientIds = patients.map(p=>p.id);
+    if(!patientIds.length) { setLoading(false); return; }
+    let query = supabase.from("programs").select("*").eq("status","active").order("created_at");
+    if(selectedPatient !== "all") query = query.eq("patient_id", selectedPatient);
+    else query = query.in("patient_id", patientIds);
+    const { data } = await query;
+    setPrograms(data||[]);
+    setLoading(false);
+  };
+
+  const saveProgram = async (data) => {
+    if(data.id) {
+      const { id, patientIds, ...rest } = data;
+      await supabase.from("programs").update(rest).eq("id",id);
+      showToast("Program updated ✓");
+    } else {
+      const { patientIds, ...rest } = data;
+      const ids = patientIds?.length ? patientIds : (selectedPatient!=="all" ? [selectedPatient] : []);
+      if(!ids.length) { showToast("Select at least one patient"); return; }
+      for(const pid of ids) {
+        await supabase.from("programs").insert({ ...rest, patient_id:pid, status:"active" });
+      }
+      showToast(`Program created for ${ids.length} patient(s) ✓`);
+    }
+    loadPrograms();
+  };
+
+  const deleteProgram = async (id) => {
+    if(!window.confirm("Archive this program?")) return;
+    await supabase.from("programs").update({ status:"inactive" }).eq("id",id);
+    showToast("Program archived");
+    loadPrograms();
+  };
+
+  return (
+    <div>
+      {showForm && <ProgramFormModal patients={patients} patientId={selectedPatient==="all"?null:selectedPatient} onClose={()=>setShowForm(false)} onSave={async d=>{await saveProgram(d);setShowForm(false);}} />}
+      {editingProgram && <ProgramFormModal patients={null} patientId={selectedPatient} program={editingProgram} onClose={()=>setEditingProgram(null)} onSave={async d=>{await saveProgram(d);setEditingProgram(null);}} />}
+
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
+        <button onClick={()=>setSelectedPatient("all")}
+          style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${selectedPatient==="all"?T.navy:T.border2}`, background:selectedPatient==="all"?T.navyLt:"transparent", color:selectedPatient==="all"?T.navy:T.ink2, fontSize:13, fontWeight:selectedPatient==="all"?700:400, cursor:"pointer" }}>
+          All patients
+        </button>
+        {patients.map(p=>(
+          <button key={p.id} onClick={()=>setSelectedPatient(p.id)}
+            style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${selectedPatient===p.id?T.navy:T.border2}`, background:selectedPatient===p.id?T.navyLt:"transparent", color:selectedPatient===p.id?T.navy:T.ink2, fontSize:13, fontWeight:selectedPatient===p.id?700:400, cursor:"pointer" }}>
+            {p.initials} · {p.name}
+          </button>
+        ))}
+        <button onClick={()=>setShowForm(true)}
+          style={{ padding:"8px 16px", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer", marginLeft:"auto" }}>
+          + New program
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>Loading…</div>
+      ) : programs.length===0 ? (
+        <Card style={{ textAlign:"center", padding:60 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>🔬</div>
+          <div style={{ fontSize:18, fontWeight:700, color:T.ink2, marginBottom:6 }}>No programs yet</div>
+          <div style={{ fontSize:13, color:T.ink3, marginBottom:20 }}>Add treatment programs to start collecting data</div>
+          <Btn onClick={()=>setShowForm(true)} variant="primary" style={{ margin:"0 auto" }}>+ New program</Btn>
+        </Card>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {programs.map(prog=>{
+            const ti = typeInfo[prog.type]||{ label:prog.type, color:T.ink3, bg:T.bg2 };
+            return (
+              <Card key={prog.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 20px" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+                    <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
+                    <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:ti.bg, color:ti.color }}>{ti.label}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:T.ink3 }}>{prog.description}</div>
+                  {selectedPatient==="all" && (
+                    <div style={{ fontSize:11, color:T.navyMd, marginTop:4, fontWeight:500 }}>
+                      👤 {patients.find(p=>p.id===prog.patient_id)?.name||"Unknown"}
+                    </div>
+                  )}
+                  <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>Target: {prog.target} · {prog.direction}</div>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={()=>setEditingProgram(prog)}
+                    style={{ fontSize:12, padding:"6px 12px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600 }}>✏️ Edit</button>
+                  <button onClick={()=>deleteProgram(prog.id)}
+                    style={{ fontSize:12, padding:"6px 12px", borderRadius:7, border:`1px solid ${T.red}30`, background:T.redLt, color:T.red, cursor:"pointer", fontWeight:600 }}>Archive</button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Program Form Modal ───────────────────────────────────────────────────────
+function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
+  const [name, setName] = useState(program?.name||"");
+  const [type, setType] = useState(program?.type||"frequency");
+  const [description, setDescription] = useState(program?.description||"");
+  const [target, setTarget] = useState(program?.target||"");
+  const [targetVal, setTargetVal] = useState(program?.target_val||"");
+  const [direction, setDirection] = useState(program?.direction||"decrease");
+  const [selectedPatients, setSelectedPatients] = useState(patientId?[patientId]:[]);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const togglePatient = (id) => {
+    setSelectedPatients(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
+  };
+
+  const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13, border:`1px solid ${T.border2}`, background:T.white, outline:"none", color:T.ink, fontFamily:"inherit" };
+
+  const handleSave = async () => {
+    if(!name||!type) return;
+    if(!program && (!selectedPatients.length)) { alert("Select at least one patient"); return; }
+    setSaving(true);
+    await onSave({ id:program?.id, name, type, description, target, target_val:parseFloat(targetVal)||null, direction, patientIds:selectedPatients });
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:480, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+        <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>{program?"Edit program":"New program"}</div>
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Program name *</div>
+          <input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} placeholder="e.g. Self-injurious behavior" />
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Data type *</div>
+            <select value={type} onChange={e=>setType(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+              <option value="frequency">Frequency</option>
+              <option value="duration">Duration</option>
+              <option value="rate">Rate</option>
+              <option value="latency">Latency</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Direction</div>
+            <select value={direction} onChange={e=>setDirection(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+              <option value="decrease">Decrease</option>
+              <option value="increase">Increase</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Description</div>
+          <input value={description} onChange={e=>setDescription(e.target.value)} style={inputStyle} placeholder="Brief description" />
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Target</div>
+            <input value={target} onChange={e=>setTarget(e.target.value)} style={inputStyle} placeholder="e.g. < 2 per session" />
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Target value</div>
+            <input type="number" value={targetVal} onChange={e=>setTargetVal(e.target.value)} style={inputStyle} placeholder="e.g. 2" />
+          </div>
+        </div>
+
+        {!program && patients && (
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Assign to patients *</div>
+            {selectedPatients.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
+                {selectedPatients.map(id => {
+                  const p = patients.find(p=>p.id===id);
+                  return (
+                    <span key={id} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:99, background:T.navyLt, color:T.navy, fontSize:12, fontWeight:600 }}>
+                      {p?.name}
+                      <button onClick={()=>togglePatient(id)} style={{ background:"none", border:"none", cursor:"pointer", color:T.navy, fontSize:16, lineHeight:1, padding:0 }}>×</button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            <input
+              placeholder="Search and add patients…"
+              value={patientSearch}
+              onChange={e=>setPatientSearch(e.target.value)}
+              style={{ ...inputStyle, marginBottom:6 }}
+            />
+            {patientSearch && (
+              <div style={{ border:`1px solid ${T.border2}`, borderRadius:8, overflow:"hidden", maxHeight:160, overflowY:"auto" }}>
+                {patients.filter(p=>p.name.toLowerCase().includes(patientSearch.toLowerCase())&&!selectedPatients.includes(p.id)).map(p=>(
+                  <div key={p.id} onClick={()=>{ togglePatient(p.id); setPatientSearch(""); }}
+                    style={{ padding:"9px 14px", cursor:"pointer", fontSize:13, borderBottom:`1px solid ${T.border}`, background:T.white }}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.navyLt}
+                    onMouseLeave={e=>e.currentTarget.style.background=T.white}>
+                    <span style={{ fontWeight:600 }}>{p.initials}</span> · {p.name}
+                  </div>
+                ))}
+                {patients.filter(p=>p.name.toLowerCase().includes(patientSearch.toLowerCase())&&!selectedPatients.includes(p.id)).length===0 && (
+                  <div style={{ padding:"9px 14px", fontSize:13, color:T.ink3 }}>No patients found</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+          <button onClick={handleSave} disabled={!name||saving}
+            style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+            {saving?"Saving…":program?"Save changes":"Create program"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── RBTs Tab ─────────────────────────────────────────────────────────────────
 function RBTsTab({ rbts, patients, getPatientsForRBT }) {
   if(rbts.length===0) return (
     <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
@@ -298,6 +535,7 @@ function RBTsTab({ rbts, patients, getPatientsForRBT }) {
   );
 }
 
+// ─── Sessions Tab ─────────────────────────────────────────────────────────────
 function SessionsTab({ userId, patients }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -343,6 +581,7 @@ function SessionsTab({ userId, patients }) {
   );
 }
 
+// ─── Edit Patient Form ────────────────────────────────────────────────────────
 function EditPatientForm({ patient, onClose, onSave }) {
   const [name, setName] = useState(patient.name||"");
   const [initials, setInitials] = useState(patient.initials||"");
@@ -350,20 +589,14 @@ function EditPatientForm({ patient, onClose, onSave }) {
   const [diagnosis, setDiagnosis] = useState(patient.diagnosis||"");
   const [color, setColor] = useState(patient.color||"#378ADD");
   const [saving, setSaving] = useState(false);
-
   const COLORS = ["#378ADD","#1D9E75","#E24B4A","#EF9F27","#7F77DD","#D85A30"];
+  const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13, border:`1px solid ${T.border2}`, background:T.white, outline:"none", color:T.ink, fontFamily:"inherit" };
 
   const handleSubmit = async () => {
     if (!name || !initials) return;
     setSaving(true);
     await onSave({ id:patient.id, name, initials, dob:dob||null, diagnosis, color });
     setSaving(false);
-  };
-
-  const inputStyle = {
-    width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13,
-    border:`1px solid ${T.border2}`, background:T.white, outline:"none",
-    color:T.ink, fontFamily:"inherit",
   };
 
   return (
