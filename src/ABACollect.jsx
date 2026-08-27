@@ -344,6 +344,115 @@ function RateCard({ prog, sessionActive, onRecord }) {
   );
 }
 
+// ─── ABC Data Card ────────────────────────────────────────────────────────────
+function ABCCard({ prog, sessionActive, onRecord }) {
+  const [episodes, setEpisodes] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [antecedent, setAntecedent] = useState("");
+  const [behavior, setBehavior] = useState("");
+  const [consequence, setConsequence] = useState("");
+
+  const addEpisode = () => {
+    if (!sessionActive) { onRecord(null, "Start the session first"); return; }
+    setShowForm(true);
+  };
+
+  const saveEpisode = () => {
+    if (!behavior.trim()) return;
+    const episode = {
+      time: new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}),
+      antecedent, behavior, consequence
+    };
+    setEpisodes(e => [...e, episode]);
+    onRecord(`ABC episode ${episodes.length + 1}: ${behavior}`);
+    setAntecedent(""); setBehavior(""); setConsequence("");
+    setShowForm(false);
+  };
+
+  const textareaStyle = {
+    width:"100%", padding:"8px 12px", borderRadius:8, fontSize:12,
+    border:`1px solid ${T.border2}`, background:T.bg, resize:"none",
+    outline:"none", fontFamily:"inherit", color:T.ink, lineHeight:1.5,
+  };
+
+  return (
+    <ProgramCard prog={prog}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div>
+          <div style={{ fontSize:36, fontWeight:800, color:T.green, letterSpacing:"-1px" }}>{episodes.length}</div>
+          <div style={{ fontSize:12, color:T.ink3 }}>episodes recorded</div>
+        </div>
+        <Btn onClick={addEpisode} variant="primary" style={{ padding:"8px 16px" }}>+ Record episode</Btn>
+      </div>
+
+      {/* Episode log */}
+      {episodes.length > 0 && (
+        <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:8 }}>
+          {episodes.map((ep, i) => (
+            <div key={i} style={{ background:T.bg2, borderRadius:8, padding:"10px 12px", fontSize:12 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ fontWeight:700, color:T.green }}>Episode {i+1}</span>
+                <span style={{ color:T.ink3 }}>{ep.time}</span>
+              </div>
+              {ep.antecedent && (
+                <div style={{ marginBottom:4 }}>
+                  <span style={{ fontWeight:600, color:T.navy }}>A: </span>
+                  <span style={{ color:T.ink2 }}>{ep.antecedent}</span>
+                </div>
+              )}
+              <div style={{ marginBottom:4 }}>
+                <span style={{ fontWeight:600, color:T.red }}>B: </span>
+                <span style={{ color:T.ink2 }}>{ep.behavior}</span>
+              </div>
+              {ep.consequence && (
+                <div>
+                  <span style={{ fontWeight:600, color:T.amber }}>C: </span>
+                  <span style={{ color:T.ink2 }}>{ep.consequence}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Episode form modal */}
+      {showForm && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+          <div style={{ background:T.white, borderRadius:16, padding:28, width:460, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+            <div style={{ fontSize:16, fontWeight:800, color:T.ink, marginBottom:4 }}>Record ABC episode</div>
+            <div style={{ fontSize:12, color:T.ink3, marginBottom:20 }}>{prog.name}</div>
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:T.navy, marginBottom:4 }}>A — Antecedent</div>
+              <div style={{ fontSize:11, color:T.ink3, marginBottom:6 }}>What happened immediately before the behavior?</div>
+              <textarea rows={2} value={antecedent} onChange={e=>setAntecedent(e.target.value)}
+                placeholder="e.g. Teacher gave a demand, transition to new activity…"
+                style={textareaStyle} />
+            </div>
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:T.red, marginBottom:4 }}>B — Behavior *</div>
+              <div style={{ fontSize:11, color:T.ink3, marginBottom:6 }}>Describe the behavior objectively</div>
+              <textarea rows={2} value={behavior} onChange={e=>setBehavior(e.target.value)}
+                placeholder="e.g. Client hit table 3 times with open hand…"
+                style={{ ...textareaStyle, border:`1px solid ${behavior?T.border2:T.red}30` }} />
+            </div>
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:T.amber, marginBottom:4 }}>C — Consequence</div>
+              <div style={{ fontSize:11, color:T.ink3, marginBottom:6 }}>What happened immediately after?</div>
+              <textarea rows={2} value={consequence} onChange={e=>setConsequence(e.target.value)}
+                placeholder="e.g. Demand was removed, peer moved away…"
+                style={textareaStyle} />
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <Btn onClick={()=>{ setShowForm(false); setAntecedent(""); setBehavior(""); setConsequence(""); }} style={{ flex:1 }}>Cancel</Btn>
+              <Btn onClick={saveEpisode} variant="primary" disabled={!behavior.trim()} style={{ flex:1 }}>Save episode</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </ProgramCard>
+  );
+}
+
 // ─── Session view ─────────────────────────────────────────────────────────────
 function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], onDocumentSession }) {
   const typeOrder = ["frequency","duration","interval","rate","latency"];
@@ -378,6 +487,7 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
           prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
+          prog.type==="abc_data" ? <ABCCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling"||prog.type==="interval"
             ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> : null
         )}
