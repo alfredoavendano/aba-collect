@@ -387,6 +387,8 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
   const [selectedPatients, setSelectedPatients] = useState(patientId?[patientId]:[]);
   const [patientSearch, setPatientSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [intervalSecs, setIntervalSecs] = useState(program?.interval_secs||10);
+  const [totalIntervals, setTotalIntervals] = useState(program?.total_intervals||20);
 
   const togglePatient = (id) => {
     setSelectedPatients(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
@@ -398,7 +400,13 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
     if(!name||!type) return;
     if(!program && (!selectedPatients.length)) { alert("Select at least one patient"); return; }
     setSaving(true);
-    await onSave({ id:program?.id, name, type, description, target, target_val:parseFloat(targetVal)||null, direction, patientIds:selectedPatients });
+    await onSave({ 
+      id:program?.id, name, type, description, target, 
+      target_val:parseFloat(targetVal)||null, direction, 
+      interval_secs:parseInt(intervalSecs)||null,
+      total_intervals:parseInt(totalIntervals)||null,
+      patientIds:selectedPatients 
+    });
     setSaving(false);
   };
 
@@ -418,6 +426,12 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
               <option value="duration">Duration</option>
               <option value="rate">Rate</option>
               <option value="latency">Latency</option>
+              <option value="partial_interval">Partial Interval Recording</option>
+              <option value="whole_interval">Whole Interval Recording</option>
+              <option value="momentary_time_sampling">Momentary Time Sampling</option>
+              <option value="abc_data">ABC Data</option>
+              <option value="scatterplot">Scatterplot</option>
+              <option value="permanent_product">Permanent Product</option>
             </select>
           </div>
           <div>
@@ -442,6 +456,19 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
             <input type="number" value={targetVal} onChange={e=>setTargetVal(e.target.value)} style={inputStyle} placeholder="e.g. 2" />
           </div>
         </div>
+
+        {["partial_interval","whole_interval","momentary_time_sampling"].includes(type) && (
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Interval duration (seconds)</div>
+              <input type="number" value={intervalSecs} onChange={e=>setIntervalSecs(e.target.value)} style={inputStyle} placeholder="e.g. 10" />
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Total intervals (benchmark)</div>
+              <input type="number" value={totalIntervals} onChange={e=>setTotalIntervals(e.target.value)} style={inputStyle} placeholder="e.g. 20" />
+            </div>
+          </div>
+        )}
 
         {!program && patients && (
           <div style={{ marginBottom:20 }}>

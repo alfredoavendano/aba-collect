@@ -39,7 +39,12 @@ const age = (dob) => dob ? Math.floor((Date.now()-new Date(dob))/(365.25*864e5))
 const typeInfo = {
   frequency: { label:"Frequency", color:T.red,    bg:T.redLt   },
   duration:  { label:"Duration",  color:T.amber,  bg:T.amberLt },
-  interval:  { label:"Interval",  color:T.purple, bg:T.purpleLt},
+  partial_interval:         { label:"Partial Interval",  color:T.purple, bg:T.purpleLt },
+  whole_interval:           { label:"Whole Interval",    color:T.purple, bg:T.purpleLt },
+  momentary_time_sampling:  { label:"Momentary TS",      color:T.navy,   bg:T.navyLt   },
+  abc_data:                 { label:"ABC Data",          color:T.green,  bg:T.greenLt  },
+  scatterplot:              { label:"Scatterplot",       color:T.amber,  bg:T.amberLt  },
+  permanent_product:        { label:"Permanent Product", color:T.ink2,   bg:T.bg2      },
   rate:      { label:"Rate",      color:T.green,  bg:T.greenLt },
   latency:   { label:"Latency",   color:T.navy,   bg:T.navyLt  },
 };
@@ -177,31 +182,129 @@ function DurationCard({ prog, sessionActive, onRecord }) {
 
 // ─── Interval ─────────────────────────────────────────────────────────────────
 function IntervalCard({ prog, sessionActive, onRecord }) {
-  const total = prog.total_intervals||20;
-  const [cells, setCells] = useState(()=>Array(total).fill(null));
-  const markCell = (i,v) => { setCells(p=>{const n=[...p];n[i]=v;return n;}); onRecord(`Interval ${i+1}: ${v?"✓":"✗"}`); };
-  const occurred = cells.filter(c=>c===true).length;
-  const marked   = cells.filter(c=>c!==null).length;
-  const pct = Math.round((occurred/total)*100);
-  const atTarget = prog.direction==="decrease" ? pct<=prog.targetVal : pct>=prog.targetVal;
+  const total = prog.total_intervals || 20;
+  const intervalSecs = prog.interval_secs || 10;
+  const [results, setResults] = useState([]); // true=occurred, false=not
+  const [currentInterval, setCurrentInterval] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(intervalSecs);
+  const [running, setRunning] = useState(false);
+  const [waitingResponse, setWaitingResponse] = useState(false);
+  const timerRef = useRef(null);
+
+  const occurred = results.filter(r=>r===true).length;
+  const pct = results.length > 0 ? Math.round((occurred/results.length)*100) : null;
+  const atTarget = pct !== null && (prog.direction==="decrease" ? pct<=prog.targetVal : pct>=prog.targetVal);
+
+  useEffect(() => {
+    if (!running || waitingResponse) return;
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(timerRef.current);
+          setWaitingResponse(true);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [running, waitingResponse, currentInterval]);
+
+  const startRecording = () => {
+    if (!sessionActive) { onRecord(null, "Start the session first"); return; }
+    setRunning(true);
+    setTimeLeft(intervalSecs);
+  };
+
+  const recordResponse = (occurred) => {
+    const newResults = [...results, occurred];
+    setResults(newResults);
+    onRecord(`Interval ${currentInterval+1}: ${occurred?"✓":"✗"}`);
+    const next = currentInterval + 1;
+    if (next >= total) {
+      setRunning(false);
+      setWaitingResponse(false);
+      setCurrentInterval(total);
+    } else {
+      setCurrentInterval(next);
+      setTimeLeft(intervalSecs);
+      setWaitingResponse(false);
+    }
+  };
+
+  const reset = () => {
+    clearInterval(timerRef.current);
+    setResults([]); setCurrentInterval(0);
+    setTimeLeft(intervalSecs); setRunning(false); setWaitingResponse(false);
+  };
+
+  const isComplete = currentInterval >= total;
+
   return (
     <ProgramCard prog={prog}>
-      <div style={{ fontSize:64, fontWeight:800, lineHeight:1, letterSpacing:"-2px", color:marked===0?T.ink3:atTarget?T.green:T.red }}>{pct}%</div>
-      <div style={{ fontSize:12, color:T.ink3, marginTop:6 }}>{marked}/{total} intervals marked</div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(10,1fr)", gap:4, marginTop:12 }}>
-        {cells.map((c,i)=>(
-          <div key={i} onClick={()=>sessionActive&&markCell(i,c!==true)}
-            style={{ aspectRatio:"1", borderRadius:4, border:`1.5px solid ${c===true?prog.color:c===false?T.red:T.border2}`,
-              background:c===true?prog.colorLt:c===false?T.redLt:"transparent",
-              display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700,
-              color:c===true?prog.color:c===false?T.red:T.ink3, cursor:sessionActive?"pointer":"default" }}>
-            {i+1}
-          </div>
+      {/* Progress */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <div style={{ fontSize:11, color:T.ink3, fontWeight:600, textTransform:"uppercase", letterSpacing:".06em" }}>
+          {prog.type==="partial_interval"?"Partial Interval":prog.type==="whole_interval"?"Whole Interval":"Momentary Time Sampling"}
+        </div>
+        <div style={{ fontSize:12, color:T.ink3 }}>{results.length}/{total} intervals</div>
+      </div>
+
+      {/* Big number */}
+      <div style={{ fontSize:64, fontWeight:800, lineHeight:1, letterSpacing:"-2px",
+        color:isComplete?(atTarget?T.green:T.red):waitingResponse?T.amber:T.ink3 }}>
+        {pct !== null ? `${pct}%` : "—"}
+      </div>
+      <div style={{ fontSize:12, color:T.ink3, marginTop:6 }}>
+        {isComplete ? (atTarget?`✓ Within target — ${prog.target}`:`Target: ${prog.target}`) : `Target: ${prog.target}`}
+      </div>
+
+      {/* Interval dots */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:12 }}>
+        {Array.from({length:total}).map((_,i)=>(
+          <div key={i} style={{ width:14, height:14, borderRadius:3,
+            background:i<results.length?(results[i]?prog.color:T.redLt):i===currentInterval&&running?"rgba(0,0,0,.15)":T.bg2,
+            border:`1.5px solid ${i<results.length?(results[i]?prog.color:T.red):i===currentInterval&&running?T.ink3:T.border2}` }}/>
         ))}
       </div>
-      <ActionRow>
-        <Btn onClick={()=>setCells(Array(total).fill(null))} style={{ flex:1 }}>↺ Reset</Btn>
-      </ActionRow>
+
+      {/* Timer or response buttons */}
+      {!isComplete && (
+        <div style={{ marginTop:16 }}>
+          {waitingResponse ? (
+            <div>
+              <div style={{ fontSize:13, fontWeight:600, color:T.amber, marginBottom:10, textAlign:"center" }}>
+                {prog.type==="partial_interval"?"Did the behavior occur during this interval?":
+                 prog.type==="whole_interval"?"Did the behavior occur throughout the entire interval?":
+                 "Is the behavior occurring right now?"}
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <Btn onClick={()=>recordResponse(true)} variant="success" style={{ flex:1 }}>✓ Yes</Btn>
+                <Btn onClick={()=>recordResponse(false)} variant="danger" style={{ flex:1 }}>✗ No</Btn>
+              </div>
+            </div>
+          ) : running ? (
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontSize:11, color:T.ink3, marginBottom:6 }}>
+                Interval {currentInterval+1} of {total}
+              </div>
+              <div style={{ fontSize:48, fontWeight:800, color:timeLeft<=3?T.red:T.navy, letterSpacing:"-1px" }}>
+                {timeLeft}s
+              </div>
+            </div>
+          ) : (
+            <ActionRow>
+              <Btn onClick={startRecording} variant="primary" style={{ flex:1 }}>▶ Start intervals</Btn>
+            </ActionRow>
+          )}
+        </div>
+      )}
+
+      {isComplete && (
+        <ActionRow>
+          <Btn onClick={reset} style={{ flex:1 }}>↺ Reset</Btn>
+        </ActionRow>
+      )}
     </ProgramCard>
   );
 }
@@ -274,8 +377,9 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
         {sorted.map(prog=>
           prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
-          prog.type==="interval"  ? <IntervalCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
-          prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> : null
+          prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
+          prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling"||prog.type==="interval"
+            ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> : null
         )}
       </div>
       <Card style={{ marginTop:16 }}>
