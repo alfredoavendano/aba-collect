@@ -131,13 +131,25 @@ function ActionRow({ children }) {
 }
 
 // ─── Frequency ────────────────────────────────────────────────────────────────
-function FrequencyCard({ prog, sessionActive, onRecord }) {
+function FrequencyCard({ prog, sessionActive, onRecord, session, userId }) {
   const [count, setCount] = useState(0);
   const atTarget = prog.direction==="decrease" ? count<=prog.targetVal : count>=prog.targetVal;
-  const record = () => {
-    if (!sessionActive) { onRecord(null,"Start the session first"); return; }
-    setCount(c=>c+1); onRecord(`${prog.name} ×${count+1}`);
-  };
+  const record = async () => {
+  if(!sessionActive){ onRecord(null,"Start session first"); return; }
+  const newCount = count + 1;
+  setCount(newCount);
+  onRecord(`${prog.name} ×${newCount}`);
+  if(session?.id) {
+    await supabase.from("data_points").insert({
+      session_id: session.id,
+      program_id: prog.id,
+      type: "frequency",
+      value: newCount,
+      recorded_at: new Date().toISOString(),
+      rbt_id: userId
+    });
+  }
+};
   return (
     <ProgramCard prog={prog}>
       <div style={{ fontSize:64, fontWeight:800, color:atTarget?T.green:T.red, lineHeight:1, fontVariantNumeric:"tabular-nums", letterSpacing:"-2px" }}>{count}</div>
@@ -153,17 +165,33 @@ function FrequencyCard({ prog, sessionActive, onRecord }) {
 }
 
 // ─── Duration ─────────────────────────────────────────────────────────────────
-function DurationCard({ prog, sessionActive, onRecord }) {
+function DurationCard({ prog, sessionActive, onRecord, session, userId }) {
   const [running, setRunning] = useState(false);
   const [secs, setSecs] = useState(0);
   const [total, setTotal] = useState(0);
   const [episodes, setEpisodes] = useState([]);
   const ref = useRef(null);
-  const toggle = () => {
+  const toggle = async () => {
     if (!sessionActive) { onRecord(null,"Start the session first"); return; }
     if (!running) { setRunning(true); ref.current=setInterval(()=>setSecs(s=>s+1),1000); }
-    else { clearInterval(ref.current); setTotal(t=>t+secs); setEpisodes(e=>[...e,secs]); setSecs(0); setRunning(false); onRecord(`${prog.name}: ${fmt(secs)}`); }
-  };
+    else{
+      clearInterval(ref.current);
+      const elapsed = secs;
+      setTotal(t=>t+elapsed);
+      setSecs(0);
+      setRunning(false);
+      onRecord(`${prog.name}: ${fmt(elapsed)}`);
+      if(session?.id) {
+        await supabase.from("data_points").insert({
+          session_id: session.id,
+          program_id: prog.id,
+          type: "duration",
+          value: elapsed,
+          recorded_at: new Date().toISOString(),
+          rbt_id: userId
+        });
+      }
+    }  };
   useEffect(()=>()=>clearInterval(ref.current),[]);
   return (
     <ProgramCard prog={prog}>
@@ -181,7 +209,7 @@ function DurationCard({ prog, sessionActive, onRecord }) {
 }
 
 // ─── Interval ─────────────────────────────────────────────────────────────────
-function IntervalCard({ prog, sessionActive, onRecord }) {
+function IntervalCard({ prog, sessionActive, onRecord, session, userId }) {  
   const total = prog.total_intervals || 20;
   const intervalSecs = prog.interval_secs || 10;
   const [results, setResults] = useState([]); // true=occurred, false=not
@@ -216,21 +244,33 @@ function IntervalCard({ prog, sessionActive, onRecord }) {
     setTimeLeft(intervalSecs);
   };
 
-  const recordResponse = (occurred) => {
-    const newResults = [...results, occurred];
-    setResults(newResults);
-    onRecord(`Interval ${currentInterval+1}: ${occurred?"✓":"✗"}`);
-    const next = currentInterval + 1;
-    if (next >= total) {
-      setRunning(false);
-      setWaitingResponse(false);
-      setCurrentInterval(total);
-    } else {
-      setCurrentInterval(next);
-      setTimeLeft(intervalSecs);
-      setWaitingResponse(false);
-    }
-  };
+  const recordResponse = async (occurred) => {
+  const newResults = [...results, occurred];
+  setResults(newResults);
+  onRecord(`Interval ${currentInterval+1}: ${occurred?"✓":"✗"}`);
+  if(session?.id) {
+    await supabase.from("data_points").insert({
+      session_id: session.id,
+      program_id: prog.id,
+      type: prog.type,
+      value: occurred ? 1 : 0,
+      occurred: occurred,
+      interval_index: currentInterval,
+      recorded_at: new Date().toISOString(),
+      rbt_id: userId
+    });
+  }
+  const next = currentInterval + 1;
+  if (next >= total) {
+    setRunning(false);
+    setWaitingResponse(false);
+    setCurrentInterval(total);
+  } else {
+    setCurrentInterval(next);
+    setTimeLeft(intervalSecs);
+    setWaitingResponse(false);
+  }
+};
 
   const reset = () => {
     clearInterval(timerRef.current);
@@ -310,16 +350,27 @@ function IntervalCard({ prog, sessionActive, onRecord }) {
 }
 
 // ─── Rate ─────────────────────────────────────────────────────────────────────
-function RateCard({ prog, sessionActive, onRecord }) {
+function RateCard({ prog, sessionActive, onRecord, session, userId }) {  
   const [yes, setYes] = useState(0);
   const [total, setTotal] = useState(0);
   const [log, setLog] = useState([]);
   const pct = total>0 ? Math.round((yes/total)*100) : null;
   const atTarget = pct!==null && (prog.direction==="increase" ? pct>=prog.targetVal : pct<=prog.targetVal);
-  const record = (c) => {
-    if (!sessionActive) { onRecord(null,"Start the session first"); return; }
-    if(c)setYes(y=>y+1); setTotal(t=>t+1); setLog(l=>[...l,c]);
+  const record = async (c) => {
+    if(!sessionActive){ onRecord(null,"Start session first"); return; }
+    if(c) setYes(y=>y+1);
+    setTotal(t=>t+1);
     onRecord(`${prog.name}: ${c?"✓":"✗"}`);
+    if(session?.id) {
+      await supabase.from("data_points").insert({
+        session_id: session.id,
+        program_id: prog.id,
+        type: "rate",
+        value: c ? 1 : 0,
+        recorded_at: new Date().toISOString(),
+        rbt_id: userId
+      });
+    }
   };
   return (
     <ProgramCard prog={prog}>
@@ -345,7 +396,7 @@ function RateCard({ prog, sessionActive, onRecord }) {
 }
 
 // ─── ABC Data Card ────────────────────────────────────────────────────────────
-function ABCCard({ prog, sessionActive, onRecord }) {
+function ABCCard({ prog, sessionActive, onRecord, session, userId }) {  
   const [episodes, setEpisodes] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [antecedent, setAntecedent] = useState("");
@@ -357,17 +408,30 @@ function ABCCard({ prog, sessionActive, onRecord }) {
     setShowForm(true);
   };
 
-  const saveEpisode = () => {
-    if (!behavior.trim()) return;
-    const episode = {
-      time: new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}),
-      antecedent, behavior, consequence
-    };
-    setEpisodes(e => [...e, episode]);
-    onRecord(`ABC episode ${episodes.length + 1}: ${behavior}`);
-    setAntecedent(""); setBehavior(""); setConsequence("");
-    setShowForm(false);
+  const saveEpisode = async () => {
+  if (!behavior.trim()) return;
+  const episode = {
+    time: new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}),
+    antecedent, behavior, consequence
   };
+  setEpisodes(e => [...e, episode]);
+  onRecord(`ABC episode ${episodes.length + 1}: ${behavior}`);
+  if(session?.id) {
+    await supabase.from("data_points").insert({
+      session_id: session.id,
+      program_id: prog.id,
+      type: "abc_data",
+      value: episodes.length + 1,
+      antecedent: antecedent,
+      behavior: behavior,
+      consequence: consequence,
+      recorded_at: new Date().toISOString(),
+      rbt_id: userId
+    });
+  }
+  setAntecedent(""); setBehavior(""); setConsequence("");
+  setShowForm(false);
+};
 
   const textareaStyle = {
     width:"100%", padding:"8px 12px", borderRadius:8, fontSize:12,
@@ -454,7 +518,7 @@ function ABCCard({ prog, sessionActive, onRecord }) {
 }
 
 // ─── Scatterplot Card ─────────────────────────────────────────────────────────
-function ScatterplotCard({ prog, sessionActive, onRecord }) {
+function ScatterplotCard({ prog, sessionActive, onRecord, session, userId }) {  
   const startHour = prog.scatter_start_hour ?? 8;
   const endHour = prog.scatter_end_hour ?? 17;
   const blockMins = prog.scatter_block_mins ?? 30;
@@ -470,16 +534,27 @@ function ScatterplotCard({ prog, sessionActive, onRecord }) {
     return Math.max(0, Math.min(block, totalBlocks - 1));
   };
 
-  const recordInCurrentBlock = () => {
-    if (!sessionActive) { onRecord(null, "Start the session first"); return; }
-    const block = getCurrentBlock();
-    setCounts(c => {
-      const next = [...c];
-      next[block] = next[block] + 1;
-      return next;
+  const recordInCurrentBlock = async () => {
+  if (!sessionActive) { onRecord(null, "Start the session first"); return; }
+  const block = getCurrentBlock();
+  setCounts(c => {
+    const next = [...c];
+    next[block] = next[block] + 1;
+    return next;
+  });
+  onRecord(`Scatterplot: block ${block + 1} recorded`);
+  if(session?.id) {
+    await supabase.from("data_points").insert({
+      session_id: session.id,
+      program_id: prog.id,
+      type: "scatterplot",
+      value: 1,
+      block_index: block,
+      recorded_at: new Date().toISOString(),
+      rbt_id: userId
     });
-    onRecord(`Scatterplot: block ${block + 1} recorded`);
-  };
+  }
+};
 
   const blockLabel = (i) => {
     const totalMins = startHour * 60 + i * blockMins;
@@ -532,11 +607,22 @@ function ScatterplotCard({ prog, sessionActive, onRecord }) {
       <div style={{ display:"grid", gridTemplateColumns:`repeat(${blocksPerHour}, 1fr)`, gap:3 }}>
         {counts.map((count, i) => (
           <div key={i}
-            onClick={() => {
-              if (!sessionActive) return;
-              setCounts(c => { const next=[...c]; next[i]=next[i]+1; return next; });
-              onRecord(`Scatterplot: ${blockLabel(i)} recorded`);
-            }}
+            onClick={async () => {
+            if (!sessionActive) return;
+            setCounts(c => { const next=[...c]; next[i]=next[i]+1; return next; });
+            onRecord(`Scatterplot: ${blockLabel(i)} recorded`);
+            if(session?.id) {
+              await supabase.from("data_points").insert({
+                session_id: session.id,
+                program_id: prog.id,
+                type: "scatterplot",
+                value: 1,
+                block_index: i,
+                recorded_at: new Date().toISOString(),
+                rbt_id: userId
+              });
+            }
+          }}
             title={`${blockLabel(i)}: ${count} occurrence${count!==1?"s":""}`}
             style={{
               height:32, borderRadius:4, background:blockColor(count),
@@ -569,16 +655,27 @@ function ScatterplotCard({ prog, sessionActive, onRecord }) {
 }
 
 // ─── Permanent Product Card ───────────────────────────────────────────────────
-function PermanentProductCard({ prog, sessionActive, onRecord }) {
+function PermanentProductCard({ prog, sessionActive, onRecord, session, userId }) {  
   const [count, setCount] = useState(0);
   const [items, setItems] = useState([]);
 
-  const record = () => {
+  const record = async () => {
     if (!sessionActive) { onRecord(null, "Start the session first"); return; }
     const time = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
-    setCount(c => c + 1);
-    setItems(i => [...i, { time, n: count + 1 }]);
-    onRecord(`Permanent product #${count + 1} recorded`);
+    const newCount = count + 1;
+    setCount(newCount);
+    setItems(i => [...i, { time, n: newCount }]);
+    onRecord(`Permanent product #${newCount} recorded`);
+    if(session?.id) {
+      await supabase.from("data_points").insert({
+        session_id: session.id,
+        program_id: prog.id,
+        type: "permanent_product",
+        value: newCount,
+        recorded_at: new Date().toISOString(),
+        rbt_id: userId
+      });
+    }
   };
 
   const atTarget = prog.direction==="decrease" ? count <= prog.target_val : count >= prog.target_val;
@@ -644,14 +741,14 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
       )}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))", gap:14 }}>
         {sorted.map(prog=>
-          prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
-          prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
-          prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
-          prog.type==="abc_data" ? <ABCCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
-          prog.type==="scatterplot" ? <ScatterplotCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
-          prog.type==="permanent_product" ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
+          prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
+          prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
+          prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
           prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling"||prog.type==="interval"
-            ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> : null
+            ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
+          prog.type==="abc_data"  ? <ABCCard       key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
+          prog.type==="scatterplot" ? <ScatterplotCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
+          prog.type==="permanent_product" ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> : null
         )}
       </div>
       <Card style={{ marginTop:16 }}>
@@ -964,6 +1061,7 @@ export default function App({ user, profile, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("session");
   const [sessionActive, setSessionActive] = useState(false);
+  const [currentSession, setCurrentSession] = useState(null);
   const [sessionSecs, setSessionSecs] = useState(0);
   const [toast, setToast] = useState("");
   const [showSessionNote, setShowSessionNote] = useState(false);
@@ -1030,26 +1128,45 @@ useEffect(() => {
     toastRef.current=setTimeout(()=>setToast(""),2500);
   },[]);
 
-  const startSession = () => {
-    setSessionActive(true); setSessionSecs(0);
-    timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);
-    showToast("Session started");
-  };
+const startSession = async () => {
+  const { data: session } = await supabase.from("sessions").insert({
+    patient_id: selectedPatientId,
+    rbt_name: profile?.full_name || "RBT",
+    started_at: new Date().toISOString(),
+    documentation_status: "pending"
+  }).select().single();
+  setCurrentSession(session);
+  setSessionActive(true);
+  setSessionSecs(0);
+  timerRef.current = setInterval(()=>setSessionSecs(s=>s+1), 1000);
+  showToast("Session started");
+};
 
-  const endSession = async () => {
-    setSessionActive(false); clearInterval(timerRef.current);
-    let saved=null;
-    if(selectedPatientId){
-      const { data } = await supabase.from('sessions').insert({
-        patient_id:selectedPatientId, rbt_name:profile?.full_name||user?.email||'RBT',
-        ended_at:new Date().toISOString(), duration_secs:sessionSecs, documentation_status:'pending'
-      }).select().single();
-      saved=data;
-    }
-    setCompletedSession(saved);
-    setShowSessionNote(true);
-    loadPendingSessions();
-  };
+const endSession = async () => {
+  setSessionActive(false); clearInterval(timerRef.current);
+  let saved = currentSession;
+  if(currentSession) {
+    const { data } = await supabase.from("sessions").update({
+      ended_at: new Date().toISOString(),
+      duration_secs: sessionSecs,
+      documentation_status: "pending"
+    }).eq("id", currentSession.id).select().single();
+    saved = data;
+  } else if(selectedPatientId) {
+    const { data } = await supabase.from("sessions").insert({
+      patient_id: selectedPatientId,
+      rbt_name: profile?.full_name||user?.email||"RBT",
+      ended_at: new Date().toISOString(),
+      duration_secs: sessionSecs,
+      documentation_status: "pending"
+    }).select().single();
+    saved = data;
+  }
+  setCurrentSession(null);
+  setCompletedSession(saved);
+  setShowSessionNote(true);
+  loadPendingSessions();
+};
 
   useEffect(()=>()=>clearInterval(timerRef.current),[]);
 
@@ -1179,8 +1296,7 @@ useEffect(() => {
 
         {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:28}}>
-          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
-          {view==="programs"&&<ProgramsView programs={patientPrograms} profile={profile}/>}
+          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id}/>}          {view==="programs"&&<ProgramsView programs={patientPrograms} profile={profile}/>}
           {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient}/>}
           {view==="reports"&&<ReportsView patient={patient}/>}
         </div>
