@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
+const [dataPoints, setDataPoints] = useState([]);
+
+useEffect(() => {
+  if (!session?.id) return;
+  supabase.from("data_points")
+    .select("*")
+    .eq("session_id", session.id)
+    .order("recorded_at")
+    .then(({ data }) => setDataPoints(data||[]));
+}, [session?.id]);
+
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
   green:"#0D6E4E",greenLt:"#E6F5F0",greenMd:"#18A274",
