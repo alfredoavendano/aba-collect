@@ -568,6 +568,51 @@ function ScatterplotCard({ prog, sessionActive, onRecord }) {
   );
 }
 
+// ─── Permanent Product Card ───────────────────────────────────────────────────
+function PermanentProductCard({ prog, sessionActive, onRecord }) {
+  const [count, setCount] = useState(0);
+  const [items, setItems] = useState([]);
+
+  const record = () => {
+    if (!sessionActive) { onRecord(null, "Start the session first"); return; }
+    const time = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+    setCount(c => c + 1);
+    setItems(i => [...i, { time, n: count + 1 }]);
+    onRecord(`Permanent product #${count + 1} recorded`);
+  };
+
+  const atTarget = prog.direction==="decrease" ? count <= prog.target_val : count >= prog.target_val;
+
+  return (
+    <ProgramCard prog={prog}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+        <div>
+          <div style={{ fontSize:64, fontWeight:800, letterSpacing:"-2px", lineHeight:1, color:prog.target_val?(atTarget?T.green:T.amber):T.ink2 }}>
+            {count}
+          </div>
+          <div style={{ fontSize:12, color:T.ink3, marginTop:6 }}>
+            {prog.target ? `Target: ${prog.target}` : "products recorded"}
+          </div>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <Btn onClick={record} variant="primary" style={{ padding:"8px 16px" }}>+ Record</Btn>
+          <Btn onClick={()=>count>0&&setCount(c=>c-1)} style={{ padding:"8px 16px" }}>↩ Undo</Btn>
+        </div>
+      </div>
+
+      {items.length > 0 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:8 }}>
+          {items.map((item, i) => (
+            <span key={i} style={{ fontSize:11, padding:"3px 10px", borderRadius:99, background:T.bg2, color:T.ink3, fontWeight:500 }}>
+              #{item.n} · {item.time}
+            </span>
+          ))}
+        </div>
+      )}
+    </ProgramCard>
+  );
+}
+
 // ─── Session view ─────────────────────────────────────────────────────────────
 function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], onDocumentSession }) {
   const typeOrder = ["frequency","duration","interval","rate","latency"];
@@ -604,6 +649,7 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
           prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="abc_data" ? <ABCCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="scatterplot" ? <ScatterplotCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
+          prog.type==="permanent_product" ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling"||prog.type==="interval"
             ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> : null
         )}
