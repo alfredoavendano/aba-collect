@@ -741,14 +741,14 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
       )}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))", gap:14 }}>
         {sorted.map(prog=>
-          prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
-          prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
-          prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
+          prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
+          prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
+          prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
           prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling"||prog.type==="interval"
-            ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
-          prog.type==="abc_data"  ? <ABCCard       key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
-          prog.type==="scatterplot" ? <ScatterplotCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> :
-          prog.type==="permanent_product" ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={user?.id}/> : null
+            ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
+          prog.type==="abc_data"  ? <ABCCard       key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
+          prog.type==="scatterplot" ? <ScatterplotCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
+          prog.type==="permanent_product" ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> : null
         )}
       </div>
       <Card style={{ marginTop:16 }}>
