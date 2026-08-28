@@ -453,6 +453,121 @@ function ABCCard({ prog, sessionActive, onRecord }) {
   );
 }
 
+// ─── Scatterplot Card ─────────────────────────────────────────────────────────
+function ScatterplotCard({ prog, sessionActive, onRecord }) {
+  const startHour = prog.scatter_start_hour ?? 8;
+  const endHour = prog.scatter_end_hour ?? 17;
+  const blockMins = prog.scatter_block_mins ?? 30;
+  const blocksPerHour = 60 / blockMins;
+  const totalBlocks = (endHour - startHour) * blocksPerHour;
+
+  const [counts, setCounts] = useState(() => Array(totalBlocks).fill(0));
+
+  const getCurrentBlock = () => {
+    const now = new Date();
+    const mins = (now.getHours() - startHour) * 60 + now.getMinutes();
+    const block = Math.floor(mins / blockMins);
+    return Math.max(0, Math.min(block, totalBlocks - 1));
+  };
+
+  const recordInCurrentBlock = () => {
+    if (!sessionActive) { onRecord(null, "Start the session first"); return; }
+    const block = getCurrentBlock();
+    setCounts(c => {
+      const next = [...c];
+      next[block] = next[block] + 1;
+      return next;
+    });
+    onRecord(`Scatterplot: block ${block + 1} recorded`);
+  };
+
+  const blockLabel = (i) => {
+    const totalMins = startHour * 60 + i * blockMins;
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2,"0")} ${ampm}`;
+  };
+
+  const maxCount = Math.max(...counts, 1);
+  const totalOccurrences = counts.reduce((a,b)=>a+b, 0);
+  const currentBlock = getCurrentBlock();
+
+  const blockColor = (count) => {
+    if (count === 0) return T.bg2;
+    const intensity = count / maxCount;
+    if (intensity < 0.33) return "#FEF9C3";
+    if (intensity < 0.66) return "#FDE68A";
+    return "#FCA5A5";
+  };
+
+  return (
+    <ProgramCard prog={prog}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div>
+          <div style={{ fontSize:36, fontWeight:800, color:T.amber, letterSpacing:"-1px" }}>{totalOccurrences}</div>
+          <div style={{ fontSize:12, color:T.ink3 }}>total occurrences today</div>
+        </div>
+        <Btn onClick={recordInCurrentBlock} variant="primary" style={{ padding:"8px 16px" }}>+ Record now</Btn>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display:"flex", gap:12, marginBottom:12, fontSize:11, color:T.ink3 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+          <div style={{ width:12, height:12, borderRadius:2, background:T.bg2, border:`1px solid ${T.border2}` }}/>None
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+          <div style={{ width:12, height:12, borderRadius:2, background:"#FEF9C3" }}/>Low
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+          <div style={{ width:12, height:12, borderRadius:2, background:"#FDE68A" }}/>Medium
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+          <div style={{ width:12, height:12, borderRadius:2, background:"#FCA5A5" }}/>High
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div style={{ display:"grid", gridTemplateColumns:`repeat(${blocksPerHour}, 1fr)`, gap:3 }}>
+        {counts.map((count, i) => (
+          <div key={i}
+            onClick={() => {
+              if (!sessionActive) return;
+              setCounts(c => { const next=[...c]; next[i]=next[i]+1; return next; });
+              onRecord(`Scatterplot: ${blockLabel(i)} recorded`);
+            }}
+            title={`${blockLabel(i)}: ${count} occurrence${count!==1?"s":""}`}
+            style={{
+              height:32, borderRadius:4, background:blockColor(count),
+              border:`2px solid ${i===currentBlock?"#000":"transparent"}`,
+              cursor:sessionActive?"pointer":"default",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:10, fontWeight:700, color:count>0?T.ink3:"transparent",
+              transition:"all .15s"
+            }}>
+            {count > 0 ? count : ""}
+          </div>
+        ))}
+      </div>
+
+      {/* Hour labels */}
+      <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+        {Array.from({length:endHour-startHour+1},(_,i)=>{
+          const h = startHour + i;
+          const ampm = h >= 12 ? "PM" : "AM";
+          const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+          return <div key={i} style={{ fontSize:9, color:T.ink3 }}>{h12}{ampm}</div>;
+        })}
+      </div>
+
+      <div style={{ marginTop:10, fontSize:11, color:T.ink3, textAlign:"center" }}>
+        Current block: <strong>{blockLabel(currentBlock)}</strong> · Click any block to record manually
+      </div>
+    </ProgramCard>
+  );
+}
+
 // ─── Session view ─────────────────────────────────────────────────────────────
 function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], onDocumentSession }) {
   const typeOrder = ["frequency","duration","interval","rate","latency"];
@@ -488,6 +603,7 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
           prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="abc_data" ? <ABCCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
+          prog.type==="scatterplot" ? <ScatterplotCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> :
           prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling"||prog.type==="interval"
             ? <IntervalCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord}/> : null
         )}

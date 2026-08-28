@@ -389,6 +389,9 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [intervalSecs, setIntervalSecs] = useState(program?.interval_secs||10);
   const [totalIntervals, setTotalIntervals] = useState(program?.total_intervals||20);
+  const [scatterStart, setScatterStart] = useState(program?.scatter_start_hour||8);
+  const [scatterEnd, setScatterEnd] = useState(program?.scatter_end_hour||17);
+  const [scatterBlock, setScatterBlock] = useState(program?.scatter_block_mins||30);
 
   const togglePatient = (id) => {
     setSelectedPatients(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
@@ -405,8 +408,11 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
       target_val:parseFloat(targetVal)||null, direction, 
       interval_secs:parseInt(intervalSecs)||null,
       total_intervals:parseInt(totalIntervals)||null,
+      scatter_start_hour:parseInt(scatterStart)||8,
+      scatter_end_hour:parseInt(scatterEnd)||17,
+      scatter_block_mins:parseInt(scatterBlock)||30,
       patientIds:selectedPatients 
-    });
+});
     setSaving(false);
   };
 
@@ -469,6 +475,31 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
             </div>
           </div>
         )}
+
+        {type==="scatterplot" && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:20 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Start hour</div>
+            <select value={scatterStart} onChange={e=>setScatterStart(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+              {Array.from({length:24},(_,i)=><option key={i} value={i}>{i===0?"12 AM":i<12?`${i} AM`:i===12?"12 PM":`${i-12} PM`}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>End hour</div>
+            <select value={scatterEnd} onChange={e=>setScatterEnd(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+              {Array.from({length:24},(_,i)=><option key={i} value={i}>{i===0?"12 AM":i<12?`${i} AM`:i===12?"12 PM":`${i-12} PM`}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Block size (min)</div>
+            <select value={scatterBlock} onChange={e=>setScatterBlock(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+              <option value={15}>15 min</option>
+              <option value={30}>30 min</option>
+              <option value={60}>60 min</option>
+            </select>
+          </div>
+        </div>
+      )}
 
         {!program && patients && (
           <div style={{ marginBottom:20 }}>
