@@ -711,7 +711,7 @@ function PermanentProductCard({ prog, sessionActive, onRecord, session, userId }
 }
 
 // ─── Session view ─────────────────────────────────────────────────────────────
-function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], onDocumentSession }) {
+function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], onDocumentSession, currentSession, userId }) {  
   const typeOrder = ["frequency","duration","interval","rate","latency"];
   const sorted = [...programs].sort((a,b)=>typeOrder.indexOf(a.type)-typeOrder.indexOf(b.type));
   return (
