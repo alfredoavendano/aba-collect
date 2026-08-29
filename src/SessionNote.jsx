@@ -1,16 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
-const [dataPoints, setDataPoints] = useState([]);
-
-useEffect(() => {
-  if (!session?.id) return;
-  supabase.from("data_points")
-    .select("*")
-    .eq("session_id", session.id)
-    .order("recorded_at")
-    .then(({ data }) => setDataPoints(data||[]));
-}, [session?.id]);
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -53,6 +43,18 @@ export default function SessionNote({ session, patient, programs, user, onComple
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [dataPoints, setDataPoints] = useState([]);
+
+useEffect(() => {
+  console.log("SessionNote session:", session);
+  if (!session?.id) return;
+  supabase.from("data_points")
+    .select("*")
+    .eq("session_id", session.id)
+    .order("recorded_at")
+    .then(({ data }) => { console.log("data_points loaded:", data); setDataPoints(data||[]); });
+}, [session?.id]);
+
 
   useEffect(() => { loadTemplate(); }, [patient]);
 
@@ -184,28 +186,66 @@ export default function SessionNote({ session, patient, programs, user, onComple
 
       {/* Behavior data summary */}
       {programs.length > 0 && (
-        <Card style={{ marginBottom:20, padding:"16px 20px" }}>
-          <div style={{ fontSize:13, fontWeight:700, color:T.ink, marginBottom:12 }}>Session data summary</div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
-            {programs.map(prog => {
-              const typeColors = {
-                frequency:{ color:T.red,   bg:T.redLt   },
-                duration: { color:T.amber, bg:T.amberLt },
-                interval: { color:T.navyMd,bg:T.navyLt  },
-                rate:     { color:T.green, bg:T.greenLt  },
-                latency:  { color:T.navy,  bg:T.navyLt   },
-              };
-              const tc = typeColors[prog.type] || { color:T.ink3, bg:T.bg2 };
-              return (
-                <div key={prog.id} style={{ background:tc.bg, borderRadius:8, padding:"10px 12px" }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:tc.color, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>{prog.type}</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:T.ink, lineHeight:1.3 }}>{prog.name}</div>
-                  {prog.target && <div style={{ fontSize:11, color:T.ink3, marginTop:3 }}>Target: {prog.target}</div>}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+      <Card style={{ marginBottom:20, padding:"16px 20px" }}>
+        <div style={{ fontSize:13, fontWeight:700, color:T.ink, marginBottom:12 }}>Session data summary</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
+          {programs.map(prog => {
+            const pts = dataPoints.filter(d=>d.program_id===prog.id);
+            const typeColors = {
+              frequency:        { color:T.red,    bg:T.redLt    },
+              duration:         { color:T.amber,  bg:T.amberLt  },
+              rate:             { color:T.green,  bg:T.greenLt  },
+              latency:          { color:T.navy,   bg:T.navyLt   },
+              partial_interval: { color:"#4C1D95",bg:"#F5F3FF"  },
+              whole_interval:   { color:"#4C1D95",bg:"#F5F3FF"  },
+              momentary_time_sampling: { color:T.navy, bg:T.navyLt },
+              abc_data:         { color:T.green,  bg:T.greenLt  },
+              scatterplot:      { color:T.amber,  bg:T.amberLt  },
+              permanent_product:{ color:T.ink2,   bg:T.bg2      },
+            };
+            const tc = typeColors[prog.type] || { color:T.ink3, bg:T.bg2 };
+
+            const getSummary = () => {
+              if(!pts.length) return "No data";
+              switch(prog.type) {
+                case "frequency":
+                  return `${pts.length} occurrences`;
+                case "duration":
+                  const totalSecs = pts.reduce((a,b)=>a+(parseFloat(b.value)||0),0);
+                  const m = Math.floor(totalSecs/60); const s = Math.round(totalSecs%60);
+                  return `${m}m ${s}s total`;
+                case "rate":
+                  const yes = pts.filter(d=>d.value==1).length;
+                  const pct = Math.round((yes/pts.length)*100);
+                  return `${pct}% (${yes}/${pts.length})`;
+                case "partial_interval":
+                case "whole_interval":
+                case "momentary_time_sampling":
+                  const occurred = pts.filter(d=>d.occurred).length;
+                  const ipct = Math.round((occurred/pts.length)*100);
+                  return `${ipct}% (${occurred}/${pts.length} intervals)`;
+                case "abc_data":
+                  return `${pts.length} episode${pts.length!==1?"s":""}`;
+                case "scatterplot":
+                  return `${pts.length} occurrences`;
+                case "permanent_product":
+                  return `${pts.length} product${pts.length!==1?"s":""}`;
+                default:
+                  return `${pts.length} data points`;
+              }
+            };
+
+            return (
+              <div key={prog.id} style={{ background:tc.bg, borderRadius:8, padding:"10px 12px" }}>
+                <div style={{ fontSize:10, fontWeight:700, color:tc.color, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>{prog.type.replace(/_/g," ")}</div>
+                <div style={{ fontSize:13, fontWeight:600, color:T.ink, lineHeight:1.3, marginBottom:4 }}>{prog.name}</div>
+                <div style={{ fontSize:18, fontWeight:800, color:tc.color }}>{getSummary()}</div>
+                {prog.target && <div style={{ fontSize:11, color:T.ink3, marginTop:3 }}>Target: {prog.target}</div>}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
       )}
 
       {/* No template warning */}
