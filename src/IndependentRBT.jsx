@@ -167,7 +167,10 @@ function ProgramFormModal({ patientId, program, onClose, onSave }) {
         </div>
         <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Description</div>
-          <input value={description} onChange={e=>setDescription(e.target.value)} style={inputStyle} placeholder="Brief description of this behavior/skill" />
+<textarea value={description} onChange={e=>setDescription(e.target.value)}
+  rows={3}
+  placeholder="Brief description of this behavior or skill…"
+  style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24 }}>
           <div>
@@ -561,7 +564,7 @@ const savePatient = async (data) => {
                           <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
                           <Badge type={prog.type} />
                         </div>
-                        <div style={{ fontSize:12, color:T.ink3 }}>{prog.description}</div>
+                        <div style={{ fontSize:12, color:T.ink3, lineHeight:1.5 }}>{prog.description}</div>
                         <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>Target: {prog.target} · {prog.direction}</div>
                       </div>
                       <div style={{ display:"flex", gap:8 }}>

@@ -353,7 +353,7 @@ function ProgramsTab({ patients, showToast }) {
                     <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
                     <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:ti.bg, color:ti.color }}>{ti.label}</span>
                   </div>
-                  <div style={{ fontSize:12, color:T.ink3 }}>{prog.description}</div>
+                  <div style={{ fontSize:12, color:T.ink3, lineHeight:1.5 }}>{prog.description}</div>
                   {selectedPatient==="all" && (
                     <div style={{ fontSize:11, color:T.navyMd, marginTop:4, fontWeight:500 }}>
                       👤 {patients.find(p=>p.id===prog.patient_id)?.name||"Unknown"}
@@ -450,7 +450,10 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
         </div>
         <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Description</div>
-          <input value={description} onChange={e=>setDescription(e.target.value)} style={inputStyle} placeholder="Brief description" />
+        <textarea value={description} onChange={e=>setDescription(e.target.value)}
+          rows={3}
+          placeholder="Brief description of this behavior or skill…"
+          style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
           <div>
