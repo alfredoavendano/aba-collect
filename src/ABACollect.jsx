@@ -1077,13 +1077,14 @@ export default function App({ user, profile, onLogout }) {
   const [sessionSecs, setSessionSecs] = useState(0);
   const [toast, setToast] = useState("");
   const width = useWindowWidth();
-  const isMobile = width < 640;
+  const isMobile = true;
   const isTablet = width >= 640 && width < 1024;
   const [showSessionNote, setShowSessionNote] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
   const [pendingSessions, setPendingSessions] = useState([]);
   const timerRef = useRef(null);
   const toastRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(()=>{ loadData(); },[]);
   useEffect(() => {
@@ -1284,7 +1285,7 @@ const endSession = async () => {
             </div>
           ))}
         </div>
-      {isMobile && (
+        {isMobile && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, background:T.navy, display:"flex", justifyContent:"space-around", padding:"8px 0 12px", zIndex:100, borderTop:"1px solid rgba(255,255,255,.1)" }}>
           {NAV.map(n=>(
             <div key={n.id} onClick={()=>setView(n.id)}
@@ -1293,6 +1294,11 @@ const endSession = async () => {
               <span style={{ fontSize:9, color:"#fff", fontWeight:view===n.id?700:400 }}>{n.label}</span>
             </div>
           ))}
+          <div onClick={onLogout}
+            style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer", opacity:.5 }}>
+            <span style={{ fontSize:20 }}>🚪</span>
+            <span style={{ fontSize:9, color:"#fff", fontWeight:400 }}>Logout</span>
+          </div>
         </div>
       )}
       {/* Patient pill */}
@@ -1336,6 +1342,16 @@ const endSession = async () => {
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {/* Topbar */}
         <div style={{padding:"16px 28px",borderBottom:`1px solid ${T.border}`,background:T.white,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+          {isMobile && (
+          <button onClick={()=>setMenuOpen(true)}
+            style={{ fontSize:22, background:"none", border:"none", cursor:"pointer", color:T.ink2, padding:4, display:"flex", alignItems:"center" }}>
+            ☰
+          </button>
+        )}
+        <div>
+          <div style={{fontSize:20,fontWeight:800,color:T.ink,letterSpacing:"-0.5px"}}>{viewTitles[view]}</div>
+          <div style={{fontSize:12,color:T.ink3,marginTop:3}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
+        </div>
           <div>
             <div style={{fontSize:20,fontWeight:800,color:T.ink,letterSpacing:"-0.5px"}}>{viewTitles[view]}</div>
             <div style={{fontSize:12,color:T.ink3,marginTop:3}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
@@ -1370,7 +1386,31 @@ const endSession = async () => {
           </div>
         )}
       </div>
-
+        {isMobile && menuOpen && (
+          <div style={{ position:"fixed", inset:0, zIndex:200 }}>
+            <div onClick={()=>setMenuOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.4)" }}/>
+            <div style={{ position:"absolute", left:0, top:0, bottom:0, width:260, background:T.navy, display:"flex", flexDirection:"column" }}>
+              <div style={{ padding:"24px 20px 16px", borderBottom:"1px solid rgba(255,255,255,.1)" }}>
+                <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>ABA Collect</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:4 }}>{profile?.full_name}</div>
+              </div>
+              <div style={{ padding:"12px", flex:1 }}>
+                {NAV.map(n=>(
+                  <div key={n.id} onClick={()=>{ setView(n.id); setMenuOpen(false); }}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:8, cursor:"pointer", fontSize:14, fontWeight:view===n.id?700:400, color:view===n.id?"#fff":"rgba(255,255,255,.6)", background:view===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:4 }}>
+                    <span style={{ fontSize:18 }}>{n.icon}</span>{n.label}
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding:"16px", borderTop:"1px solid rgba(255,255,255,.1)" }}>
+                <button onClick={onLogout}
+                  style={{ width:"100%", padding:"12px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.15)", background:"transparent", fontSize:13, fontWeight:600, cursor:"pointer", color:"rgba(255,255,255,.6)" }}>
+                  🚪 Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       <Toast msg={toast}/>
     </div>
   );

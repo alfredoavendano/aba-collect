@@ -69,7 +69,7 @@ export default function AdminPanel({ profile, onLogout }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hoveredNav, setHoveredNav] = useState(null);
   const width = useWindowWidth();
-  const isMobile = width < 640;
+  const isMobile = width < 768;
 
   useEffect(() => { loadData(); }, []);
 

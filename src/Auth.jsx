@@ -40,7 +40,7 @@ export default function Auth({ onLogin }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const width = useWindowWidth();
-  const isMobile = width < 640;
+  const isMobile = width < 768;
 
   const handleLogin = async () => {
     setLoading(true); setError("");

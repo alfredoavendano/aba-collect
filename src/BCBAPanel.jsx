@@ -63,7 +63,7 @@ export default function BCBAPanel({ user, profile, onLogout }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hoveredNav, setHoveredNav] = useState(null);
   const width = useWindowWidth();
-  const isMobile = width < 640;
+  const isMobile = width < 768;
 
   useEffect(() => { loadData(); }, []);
 
@@ -629,6 +629,26 @@ function RBTsTab({ rbts, patients, getPatientsForRBT }) {
 
 // ─── Sessions Tab ─────────────────────────────────────────────────────────────
 function SessionsTab({ userId, patients }) {
+  const downloadSessionPDF = async (session, patients) => {
+  const patient = patients.find(p => p.id === session.patient_id);
+  const [progsData, dpData, noteData] = await Promise.all([
+    supabase.from("programs").select("*").eq("patient_id", session.patient_id).eq("status","active"),
+    supabase.from("data_points").select("*").eq("session_id", session.id),
+    supabase.from("session_notes").select("*, note_responses(*)").eq("session_id", session.id).single(),
+  ]);
+  const responses = {};
+  if(noteData.data?.note_responses) {
+    noteData.data.note_responses.forEach(r => { responses[r.section_title||r.section_id] = r.response_text; });
+  }
+  generateSessionReport({
+    session,
+    patient,
+    programs: progsData.data||[],
+    dataPoints: dpData.data||[],
+    sessionNote: noteData.data?.free_text||"",
+    responses,
+  });
+};
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";

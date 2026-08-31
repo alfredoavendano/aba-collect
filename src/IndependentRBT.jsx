@@ -290,7 +290,7 @@ export default function IndependentRBT({ user, profile, onLogout }) {
   const timerRef = useRef(null);
   const toastRef = useRef(null);
   const width = useWindowWidth();
-  const isMobile = width < 640;
+  const isMobile = width < 768;
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadPendingSessions(); }, [selectedPatientId]);
