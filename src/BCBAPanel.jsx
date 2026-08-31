@@ -23,6 +23,16 @@ const CSS = `
 
 const age = (dob) => dob ? Math.floor((Date.now()-new Date(dob))/(365.25*864e5)) : "—";
 
+const useWindowWidth = () => {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+};
+
 function Btn({ onClick, children, variant="secondary", style={} }) {
   const v = {
     primary:  { background:T.navy,  color:"#fff", border:"none" },
@@ -49,6 +59,10 @@ export default function BCBAPanel({ user, profile, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const [expanded, setExpanded] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hoveredNav, setHoveredNav] = useState(null);
+  const width = useWindowWidth();
+  const isMobile = width < 640;
 
   useEffect(() => { loadData(); }, []);
 
@@ -101,11 +115,12 @@ export default function BCBAPanel({ user, profile, onLogout }) {
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
       <style>{CSS}</style>
 
-      <div style={{ width:232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0 }}>
-        <div style={{ padding:"24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>
-          <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>BCBA Panel</div>
-          {profile && (
+      {/* Sidebar */}
+      <div style={{ width: isMobile ? 0 : sidebarCollapsed ? 56 : 232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0, overflow:"hidden", transition:"width .25s", position:"relative" }}>
+        <div style={{ padding: sidebarCollapsed ? "16px 8px" : "24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)", transition:"padding .25s" }}>
+          {!sidebarCollapsed && <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>}
+          {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>BCBA Panel</div>}
+          {profile && !sidebarCollapsed && (
             <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(255,255,255,.07)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
               <div style={{ width:28, height:28, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
                 {profile.full_name?.[0]?.toUpperCase()||"?"}
@@ -116,24 +131,45 @@ export default function BCBAPanel({ user, profile, onLogout }) {
               </div>
             </div>
           )}
+          {profile && sidebarCollapsed && (
+            <div style={{ width:32, height:32, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", margin:"0 auto" }}>
+              {profile.full_name?.[0]?.toUpperCase()||"?"}
+            </div>
+          )}
         </div>
 
-        <div style={{ padding:"8px 12px", flex:1, overflowY:"auto" }}>
+        <div style={{ padding:"8px 8px", flex:1, overflowY:"auto" }}>
           {NAV.map(n=>(
             <div key={n.id} onClick={()=>setTab(n.id)}
-              style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 12px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:tab===n.id?700:400, color:tab===n.id?"#fff":"rgba(255,255,255,.6)", background:tab===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:3, transition:"all .15s" }}>
-              <span>{n.icon}</span>{n.label}
+              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav(n.id)}
+              onMouseLeave={()=>setHoveredNav(null)}
+              style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:"7px 10px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:tab===n.id?700:400, color:tab===n.id?"#fff":"rgba(255,255,255,.6)", background:tab===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:2, transition:"all .15s", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
+              <span style={{ fontSize:16 }}>{n.icon}</span>
+              {!sidebarCollapsed && n.label}
+              {sidebarCollapsed && hoveredNav===n.id && (
+                <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>
+                  {n.label}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
+        {!isMobile && (
+          <button onClick={()=>setSidebarCollapsed(c=>!c)}
+            style={{ position:"fixed", left: sidebarCollapsed ? 44 : 220, top:"50%", transform:"translateY(-50%)", width:20, height:36, borderRadius:"0 6px 6px 0", background:T.navy, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.6)", fontSize:12, zIndex:10, transition:"left .25s" }}>
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
+        )}
+
         <div style={{ padding:"12px", borderTop:"1px solid rgba(255,255,255,.08)" }}>
           <button onClick={onLogout} style={{ width:"100%", padding:"8px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.12)", background:"transparent", fontSize:12, fontWeight:500, cursor:"pointer", color:"rgba(255,255,255,.5)" }}>
-            Sign out
+            {sidebarCollapsed ? "→" : "Sign out"}
           </button>
         </div>
       </div>
 
+      {/* Main */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
         <div style={{ padding:"16px 28px", borderBottom:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div>
@@ -345,7 +381,7 @@ function ProgramsTab({ patients, showToast }) {
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
           {programs.map(prog=>{
-            const ti = typeInfo[prog.type]||{ label:prog.type, color:T.ink3, bg:T.bg2 };
+            const ti = typeInfo[prog.type]||{ label:prog.type.replace(/_/g," "), color:T.ink3, bg:T.bg2 };
             return (
               <Card key={prog.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 20px" }}>
                 <div style={{ flex:1 }}>
@@ -403,16 +439,16 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
     if(!name||!type) return;
     if(!program && (!selectedPatients.length)) { alert("Select at least one patient"); return; }
     setSaving(true);
-    await onSave({ 
-      id:program?.id, name, type, description, target, 
-      target_val:parseFloat(targetVal)||null, direction, 
+    await onSave({
+      id:program?.id, name, type, description, target,
+      target_val:parseFloat(targetVal)||null, direction,
       interval_secs:parseInt(intervalSecs)||null,
       total_intervals:parseInt(totalIntervals)||null,
       scatter_start_hour:parseInt(scatterStart)||8,
       scatter_end_hour:parseInt(scatterEnd)||17,
       scatter_block_mins:parseInt(scatterBlock)||30,
-      patientIds:selectedPatients 
-});
+      patientIds:selectedPatients
+    });
     setSaving(false);
   };
 
@@ -450,10 +486,9 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
         </div>
         <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Description</div>
-        <textarea value={description} onChange={e=>setDescription(e.target.value)}
-          rows={3}
-          placeholder="Brief description of this behavior or skill…"
-          style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
+          <textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3}
+            placeholder="Brief description of this behavior or skill…"
+            style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
           <div>
@@ -480,29 +515,29 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
         )}
 
         {type==="scatterplot" && (
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:20 }}>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Start hour</div>
-            <select value={scatterStart} onChange={e=>setScatterStart(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
-              {Array.from({length:24},(_,i)=><option key={i} value={i}>{i===0?"12 AM":i<12?`${i} AM`:i===12?"12 PM":`${i-12} PM`}</option>)}
-            </select>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:20 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Start hour</div>
+              <select value={scatterStart} onChange={e=>setScatterStart(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+                {Array.from({length:24},(_,i)=><option key={i} value={i}>{i===0?"12 AM":i<12?`${i} AM`:i===12?"12 PM":`${i-12} PM`}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>End hour</div>
+              <select value={scatterEnd} onChange={e=>setScatterEnd(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+                {Array.from({length:24},(_,i)=><option key={i} value={i}>{i===0?"12 AM":i<12?`${i} AM`:i===12?"12 PM":`${i-12} PM`}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Block size (min)</div>
+              <select value={scatterBlock} onChange={e=>setScatterBlock(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+                <option value={15}>15 min</option>
+                <option value={30}>30 min</option>
+                <option value={60}>60 min</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>End hour</div>
-            <select value={scatterEnd} onChange={e=>setScatterEnd(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
-              {Array.from({length:24},(_,i)=><option key={i} value={i}>{i===0?"12 AM":i<12?`${i} AM`:i===12?"12 PM":`${i-12} PM`}</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Block size (min)</div>
-            <select value={scatterBlock} onChange={e=>setScatterBlock(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
-              <option value={15}>15 min</option>
-              <option value={30}>30 min</option>
-              <option value={60}>60 min</option>
-            </select>
-          </div>
-        </div>
-      )}
+        )}
 
         {!program && patients && (
           <div style={{ marginBottom:20 }}>
@@ -520,12 +555,7 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
                 })}
               </div>
             )}
-            <input
-              placeholder="Search and add patients…"
-              value={patientSearch}
-              onChange={e=>setPatientSearch(e.target.value)}
-              style={{ ...inputStyle, marginBottom:6 }}
-            />
+            <input placeholder="Search and add patients…" value={patientSearch} onChange={e=>setPatientSearch(e.target.value)} style={{ ...inputStyle, marginBottom:6 }} />
             {patientSearch && (
               <div style={{ border:`1px solid ${T.border2}`, borderRadius:8, overflow:"hidden", maxHeight:160, overflowY:"auto" }}>
                 {patients.filter(p=>p.name.toLowerCase().includes(patientSearch.toLowerCase())&&!selectedPatients.includes(p.id)).map(p=>(

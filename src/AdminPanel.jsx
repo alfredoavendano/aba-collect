@@ -22,6 +22,16 @@ const CSS = `
   ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:4px}
 `;
 
+const useWindowWidth = () => {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+};
+
 function Btn({ onClick, children, variant="secondary", disabled, style={} }) {
   const v = {
     primary:  { background:T.navy,   color:"#fff", border:"none" },
@@ -56,6 +66,10 @@ export default function AdminPanel({ profile, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const [showNewOrg, setShowNewOrg] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hoveredNav, setHoveredNav] = useState(null);
+  const width = useWindowWidth();
+  const isMobile = width < 640;
 
   useEffect(() => { loadData(); }, []);
 
@@ -87,21 +101,16 @@ export default function AdminPanel({ profile, onLogout }) {
     loadData();
   };
 
-  const totalPatients = async () => {
-    const { count } = await supabase.from("patients").select("*", { count:"exact", head:true });
-    return count;
-  };
-
   return (
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
       <style>{CSS}</style>
 
       {/* Sidebar */}
-      <div style={{ width:232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0 }}>
-        <div style={{ padding:"24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>
-          <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>Platform Admin</div>
-          {profile && (
+      <div style={{ width: isMobile ? 0 : sidebarCollapsed ? 56 : 232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0, overflow:"hidden", transition:"width .25s", position:"relative" }}>
+        <div style={{ padding: sidebarCollapsed ? "16px 8px" : "24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)", transition:"padding .25s" }}>
+          {!sidebarCollapsed && <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>}
+          {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>Platform Admin</div>}
+          {profile && !sidebarCollapsed && (
             <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(255,255,255,.07)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
               <div style={{ width:28, height:28, borderRadius:"50%", background:T.redMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
                 {profile.full_name?.[0]?.toUpperCase()||"?"}
@@ -112,20 +121,40 @@ export default function AdminPanel({ profile, onLogout }) {
               </div>
             </div>
           )}
+          {profile && sidebarCollapsed && (
+            <div style={{ width:32, height:32, borderRadius:"50%", background:T.redMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", margin:"0 auto" }}>
+              {profile.full_name?.[0]?.toUpperCase()||"?"}
+            </div>
+          )}
         </div>
 
-        <div style={{ padding:"16px 12px", flex:1, overflowY:"auto" }}>
+        <div style={{ padding:"16px 8px", flex:1, overflowY:"auto" }}>
           {NAV.map(n => (
             <div key={n.id} onClick={() => setTab(n.id)}
-              style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:tab===n.id?700:400, color:tab===n.id?"#fff":"rgba(255,255,255,.6)", background:tab===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:3, transition:"all .15s" }}>
-              <span>{n.icon}</span>{n.label}
+              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav(n.id)}
+              onMouseLeave={()=>setHoveredNav(null)}
+              style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:"9px 10px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:tab===n.id?700:400, color:tab===n.id?"#fff":"rgba(255,255,255,.6)", background:tab===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:3, transition:"all .15s", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
+              <span style={{ fontSize:16 }}>{n.icon}</span>
+              {!sidebarCollapsed && n.label}
+              {sidebarCollapsed && hoveredNav===n.id && (
+                <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>
+                  {n.label}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
+        {!isMobile && (
+          <button onClick={()=>setSidebarCollapsed(c=>!c)}
+            style={{ position:"fixed", left: sidebarCollapsed ? 44 : 220, top:"50%", transform:"translateY(-50%)", width:20, height:36, borderRadius:"0 6px 6px 0", background:T.navy, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.6)", fontSize:12, zIndex:10, transition:"left .25s" }}>
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
+        )}
+
         <div style={{ padding:"12px", borderTop:"1px solid rgba(255,255,255,.08)" }}>
           <button onClick={onLogout} style={{ width:"100%", padding:"8px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.12)", background:"transparent", fontSize:12, fontWeight:500, cursor:"pointer", color:"rgba(255,255,255,.5)" }}>
-            Sign out
+            {sidebarCollapsed ? "→" : "Sign out"}
           </button>
         </div>
       </div>
@@ -163,7 +192,6 @@ export default function AdminPanel({ profile, onLogout }) {
   );
 }
 
-// ─── New Org Modal ────────────────────────────────────────────────────────────
 function NewOrgModal({ onClose, onCreate }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -175,7 +203,7 @@ function NewOrgModal({ onClose, onCreate }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-      <div style={{ background:T.white, borderRadius:16, padding:32, width:440, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(440px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
         <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:6 }}>New organization</div>
         <div style={{ fontSize:13, color:T.ink3, marginBottom:24 }}>Create a new tenant on the ABA Collect platform</div>
         <div style={{ marginBottom:14 }}>
@@ -197,7 +225,6 @@ function NewOrgModal({ onClose, onCreate }) {
   );
 }
 
-// ─── Orgs Tab ─────────────────────────────────────────────────────────────────
 function OrgsTab({ orgs, users, onDelete, showNewOrg, setShowNewOrg, onCreate, showToast, reload }) {
   return (
     <div>
@@ -241,9 +268,7 @@ function OrgsTab({ orgs, users, onDelete, showNewOrg, setShowNewOrg, onCreate, s
                       ))}
                     </div>
                   </div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:8, flexShrink:0 }}>
-                    <Btn onClick={() => onDelete(org.id)} variant="danger" style={{ padding:"7px 14px", fontSize:12 }}>Delete</Btn>
-                  </div>
+                  <Btn onClick={() => onDelete(org.id)} variant="danger" style={{ padding:"7px 14px", fontSize:12 }}>Delete</Btn>
                 </div>
               </Card>
             );
@@ -254,7 +279,6 @@ function OrgsTab({ orgs, users, onDelete, showNewOrg, setShowNewOrg, onCreate, s
   );
 }
 
-// ─── All Users Tab ────────────────────────────────────────────────────────────
 function AllUsersTab({ users, orgs, showToast, reload }) {
   const [search, setSearch] = useState("");
   const [filterOrg, setFilterOrg] = useState("all");
@@ -351,7 +375,6 @@ function AllUsersTab({ users, orgs, showToast, reload }) {
   );
 }
 
-// ─── Metrics Tab ──────────────────────────────────────────────────────────────
 function MetricsTab({ orgs, users }) {
   const metrics = [
     { label:"Total organizations", value:orgs.length, color:T.navy },

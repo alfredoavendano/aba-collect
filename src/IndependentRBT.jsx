@@ -38,6 +38,16 @@ const typeInfo = {
 
 const enrichProg = (p) => ({ ...p, color:typeInfo[p.type]?.color||T.ink3, colorLt:typeInfo[p.type]?.bg||T.bg2 });
 
+const useWindowWidth = () => {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+};
+
 function Btn({ onClick, children, variant="secondary", disabled, style={} }) {
   const v = {
     primary:  { background:T.navy,  color:"#fff", border:"none" },
@@ -64,7 +74,6 @@ function Badge({ type }) {
   return <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:t.bg, color:t.color }}>{t.label}</span>;
 }
 
-// ─── Patient Form Modal ───────────────────────────────────────────────────────
 function PatientFormModal({ patient, onClose, onSave }) {
   const [name, setName] = useState(patient?.name||"");
   const [initials, setInitials] = useState(patient?.initials||"");
@@ -84,7 +93,7 @@ function PatientFormModal({ patient, onClose, onSave }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(480px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(460px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
         <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>{patient?"Edit patient":"New patient"}</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
           <div>
@@ -115,7 +124,7 @@ function PatientFormModal({ patient, onClose, onSave }) {
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
           <button onClick={handleSave} disabled={!name||!initials||saving}
-            style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer", opacity:!name||!initials?.4:1 }}>
+            style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
             {saving?"Saving…":patient?"Save changes":"Create patient"}
           </button>
         </div>
@@ -124,7 +133,6 @@ function PatientFormModal({ patient, onClose, onSave }) {
   );
 }
 
-// ─── Program Form Modal ───────────────────────────────────────────────────────
 function ProgramFormModal({ patientId, program, onClose, onSave }) {
   const [name, setName] = useState(program?.name||"");
   const [type, setType] = useState(program?.type||"frequency");
@@ -167,10 +175,9 @@ function ProgramFormModal({ patientId, program, onClose, onSave }) {
         </div>
         <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Description</div>
-<textarea value={description} onChange={e=>setDescription(e.target.value)}
-  rows={3}
-  placeholder="Brief description of this behavior or skill…"
-  style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
+          <textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3}
+            placeholder="Brief description of this behavior or skill…"
+            style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24 }}>
           <div>
@@ -194,7 +201,6 @@ function ProgramFormModal({ patientId, program, onClose, onSave }) {
   );
 }
 
-// ─── Frequency Card ───────────────────────────────────────────────────────────
 function FrequencyCard({ prog, sessionActive, onRecord }) {
   const [count, setCount] = useState(0);
   const atTarget = prog.direction==="decrease"?count<=prog.target_val:count>=prog.target_val;
@@ -202,7 +208,7 @@ function FrequencyCard({ prog, sessionActive, onRecord }) {
   return (
     <Card>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
-        <div><div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div><div style={{ fontSize:12, color:T.ink3, marginTop:4 }}>{prog.description}</div></div>
+        <div><div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div><div style={{ fontSize:12, color:T.ink3, marginTop:4, lineHeight:1.5 }}>{prog.description}</div></div>
         <Badge type={prog.type} />
       </div>
       <div style={{ fontSize:64, fontWeight:800, color:atTarget?T.green:T.red, lineHeight:1, letterSpacing:"-2px" }}>{count}</div>
@@ -215,7 +221,6 @@ function FrequencyCard({ prog, sessionActive, onRecord }) {
   );
 }
 
-// ─── Duration Card ────────────────────────────────────────────────────────────
 function DurationCard({ prog, sessionActive, onRecord }) {
   const [running, setRunning] = useState(false);
   const [secs, setSecs] = useState(0);
@@ -230,7 +235,7 @@ function DurationCard({ prog, sessionActive, onRecord }) {
   return (
     <Card>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
-        <div><div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div><div style={{ fontSize:12, color:T.ink3, marginTop:4 }}>{prog.description}</div></div>
+        <div><div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div><div style={{ fontSize:12, color:T.ink3, marginTop:4, lineHeight:1.5 }}>{prog.description}</div></div>
         <Badge type={prog.type} />
       </div>
       <div style={{ fontSize:64, fontWeight:800, lineHeight:1, letterSpacing:"-2px", color:running?T.red:T.amber }}>{fmt(secs)}</div>
@@ -243,7 +248,6 @@ function DurationCard({ prog, sessionActive, onRecord }) {
   );
 }
 
-// ─── Rate Card ────────────────────────────────────────────────────────────────
 function RateCard({ prog, sessionActive, onRecord }) {
   const [yes, setYes] = useState(0);
   const [total, setTotal] = useState(0);
@@ -252,7 +256,7 @@ function RateCard({ prog, sessionActive, onRecord }) {
   return (
     <Card>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
-        <div><div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div><div style={{ fontSize:12, color:T.ink3, marginTop:4 }}>{prog.description}</div></div>
+        <div><div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div><div style={{ fontSize:12, color:T.ink3, marginTop:4, lineHeight:1.5 }}>{prog.description}</div></div>
         <Badge type={prog.type} />
       </div>
       <div style={{ fontSize:64, fontWeight:800, lineHeight:1, letterSpacing:"-2px", color:pct!==null?T.green:T.ink3 }}>{pct!==null?`${pct}%`:"—"}</div>
@@ -265,7 +269,6 @@ function RateCard({ prog, sessionActive, onRecord }) {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function IndependentRBT({ user, profile, onLogout }) {
   const [patients, setPatients] = useState([]);
   const [programsByPatient, setProgramsByPatient] = useState({});
@@ -282,8 +285,12 @@ export default function IndependentRBT({ user, profile, onLogout }) {
   const [showSessionNote, setShowSessionNote] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
   const [pendingSessions, setPendingSessions] = useState([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hoveredNav, setHoveredNav] = useState(null);
   const timerRef = useRef(null);
   const toastRef = useRef(null);
+  const width = useWindowWidth();
+  const isMobile = width < 640;
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadPendingSessions(); }, [selectedPatientId]);
@@ -313,31 +320,16 @@ export default function IndependentRBT({ user, profile, onLogout }) {
     toastRef.current=setTimeout(()=>setToast(""),2500);
   },[]);
 
-const savePatient = async (data) => {
+  const savePatient = async (data) => {
     if(data.id) {
       const { id, ...rest } = data;
       await supabase.from("patients").update(rest).eq("id",id);
       showToast("Patient updated ✓");
     } else {
-      // Create patient
-      const { data: newPatient } = await supabase
-        .from("patients")
-        .insert({ ...data, rbt_id:user.id })
-        .select().single();
-
-      // Auto-assign default template
+      const { data: newPatient } = await supabase.from("patients").insert({ ...data, rbt_id:user.id }).select().single();
       if(newPatient) {
-        const { data: tmpl } = await supabase
-          .from("note_templates")
-          .select("id")
-          .eq("created_by", user.id)
-          .single();
-        if(tmpl) {
-          await supabase.from("template_patient_assignments").insert({
-            template_id: tmpl.id,
-            patient_id: newPatient.id
-          });
-        }
+        const { data: tmpl } = await supabase.from("note_templates").select("id").eq("created_by", user.id).single();
+        if(tmpl) await supabase.from("template_patient_assignments").insert({ template_id: tmpl.id, patient_id: newPatient.id });
       }
       showToast("Patient created ✓");
     }
@@ -360,8 +352,7 @@ const savePatient = async (data) => {
   const deleteProgram = async (id) => {
     if(!window.confirm("Delete this program?")) return;
     await supabase.from("programs").update({ status:"inactive" }).eq("id",id);
-    showToast("Program deleted");
-    loadData();
+    showToast("Program deleted"); loadData();
   };
 
   const startSession = () => {
@@ -380,9 +371,7 @@ const savePatient = async (data) => {
       }).select().single();
       saved=data;
     }
-    setCompletedSession(saved);
-    setShowSessionNote(true);
-    loadPendingSessions();
+    setCompletedSession(saved); setShowSessionNote(true); loadPendingSessions();
   };
 
   useEffect(()=>()=>clearInterval(timerRef.current),[]);
@@ -408,7 +397,7 @@ const savePatient = async (data) => {
   if(showSessionNote&&completedSession&&patient) return (
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
       <style>{CSS}</style>
-      <div style={{ flex:1, overflowY:"auto", padding:32, maxWidth:860, margin:"0 auto", width:"100%" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:32, maxWidth:"100%", width:"100%" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:28 }}>
           <div style={{ fontSize:22, fontWeight:800, color:T.navy }}>ABA Collect</div>
           <div style={{ fontSize:13, color:T.ink3 }}>— Session note</div>
@@ -434,47 +423,79 @@ const savePatient = async (data) => {
       {editingProgram && <ProgramFormModal patientId={selectedPatientId} program={editingProgram} onClose={()=>setEditingProgram(null)} onSave={async d=>{await saveProgram(d);setEditingProgram(null);}} />}
 
       {/* Sidebar */}
-      <div style={{ width:232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0 }}>
-        <div style={{ padding:"24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>
-          <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>Independent RBT</div>
-          <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(255,255,255,.07)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:28, height:28, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
+      <div style={{ width: isMobile ? 0 : sidebarCollapsed ? 56 : 232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0, overflow:"hidden", transition:"width .25s", position:"relative" }}>
+        <div style={{ padding: sidebarCollapsed ? "16px 8px" : "24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)", transition:"padding .25s" }}>
+          {!sidebarCollapsed && <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>}
+          {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>Independent RBT</div>}
+          {!sidebarCollapsed && (
+            <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(255,255,255,.07)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ width:28, height:28, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                {profile.full_name?.[0]?.toUpperCase()||"?"}
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{profile.full_name}</div>
+                <div style={{ fontSize:9, color:"rgba(255,255,255,.45)", marginTop:1, textTransform:"uppercase", letterSpacing:".05em" }}>INDEPENDENT RBT</div>
+              </div>
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <div style={{ width:32, height:32, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", margin:"0 auto" }}>
               {profile.full_name?.[0]?.toUpperCase()||"?"}
             </div>
-            <div>
-              <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{profile.full_name}</div>
-              <div style={{ fontSize:9, color:"rgba(255,255,255,.45)", marginTop:1, textTransform:"uppercase", letterSpacing:".05em" }}>INDEPENDENT RBT</div>
-            </div>
-          </div>
+          )}
         </div>
 
-        <div style={{ padding:"8px 12px", flex:1, overflowY:"auto" }}>
-          <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", letterSpacing:".08em", textTransform:"uppercase", padding:"8px 8px 6px", fontWeight:700 }}>Workspace</div>
+        <div style={{ padding:"8px 8px", flex:1, overflowY:"auto" }}>
+          {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", letterSpacing:".08em", textTransform:"uppercase", padding:"8px 8px 6px", fontWeight:700 }}>Workspace</div>}
           {NAV.map(n=>(
             <div key={n.id} onClick={()=>setView(n.id)}
-              style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 12px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:view===n.id?700:400, color:view===n.id?"#fff":"rgba(255,255,255,.6)", background:view===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:2, transition:"all .15s" }}>
-              <span style={{ fontSize:14 }}>{n.icon}</span>{n.label}
+              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav(n.id)}
+              onMouseLeave={()=>setHoveredNav(null)}
+              style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:"7px 10px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:view===n.id?700:400, color:view===n.id?"#fff":"rgba(255,255,255,.6)", background:view===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:2, transition:"all .15s", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
+              <span style={{ fontSize:16 }}>{n.icon}</span>
+              {!sidebarCollapsed && n.label}
+              {sidebarCollapsed && hoveredNav===n.id && (
+                <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>
+                  {n.label}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
+        {!isMobile && (
+          <button onClick={()=>setSidebarCollapsed(c=>!c)}
+            style={{ position:"fixed", left: sidebarCollapsed ? 44 : 220, top:"50%", transform:"translateY(-50%)", width:20, height:36, borderRadius:"0 6px 6px 0", background:T.navy, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.6)", fontSize:12, zIndex:10, transition:"left .25s" }}>
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
+        )}
+
         {patient && (
           <div style={{ padding:"12px", borderTop:"1px solid rgba(255,255,255,.08)" }}>
-            <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8, fontWeight:700, padding:"0 4px" }}>Current patient</div>
-            <div onClick={()=>setView("patients")} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, background:"rgba(255,255,255,.08)", cursor:"pointer", border:"1px solid rgba(255,255,255,.08)" }}>
+            {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8, fontWeight:700, padding:"0 4px" }}>Current patient</div>}
+            <div onClick={()=>setView("patients")}
+              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav("patient")}
+              onMouseLeave={()=>setHoveredNav(null)}
+              style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:sidebarCollapsed?"8px":"10px 12px", borderRadius:8, background:"rgba(255,255,255,.08)", cursor:"pointer", border:"1px solid rgba(255,255,255,.08)", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
               <div style={{ width:32, height:32, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>{patient.initials}</div>
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{patient.name}</div>
-                <div style={{ fontSize:10, color:"rgba(255,255,255,.45)", marginTop:1 }}>{patient.diagnosis}</div>
-              </div>
+              {!sidebarCollapsed && (
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{patient.name}</div>
+                  <div style={{ fontSize:10, color:"rgba(255,255,255,.45)", marginTop:1 }}>{patient.diagnosis}</div>
+                </div>
+              )}
+              {sidebarCollapsed && hoveredNav==="patient" && (
+                <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>
+                  {patient.name}
+                </div>
+              )}
             </div>
           </div>
         )}
 
         <div style={{ padding:"8px 12px 16px" }}>
           <button onClick={onLogout} style={{ width:"100%", padding:"8px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.12)", background:"transparent", fontSize:12, fontWeight:500, cursor:"pointer", color:"rgba(255,255,255,.5)" }}>
-            Sign out
+            {sidebarCollapsed ? "→" : "Sign out"}
           </button>
         </div>
       </div>
@@ -532,7 +553,7 @@ const savePatient = async (data) => {
                       ⚠ Press "Start session" below to begin recording
                     </div>
                   )}
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))", gap:14 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(360px,100%),1fr))", gap:14 }}>
                     {patientPrograms.map(prog=>
                       prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
                       prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
@@ -587,7 +608,7 @@ const savePatient = async (data) => {
                   <Btn onClick={()=>setShowPatientForm(true)} variant="primary" style={{ margin:"0 auto" }}>+ Add first patient</Btn>
                 </Card>
               ) : (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:12 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(260px,100%),1fr))", gap:12 }}>
                   {patients.map(p=>{
                     const progs = programsByPatient[p.id]||[];
                     const selected = p.id===selectedPatientId;
@@ -623,6 +644,18 @@ const savePatient = async (data) => {
             <div style={{ flex:1 }}/>
             {sessionActive && <Btn onClick={endSession} variant="danger">⏹ End session</Btn>}
             {!sessionActive && <Btn onClick={startSession} variant="success">▶ Start session</Btn>}
+          </div>
+        )}
+
+        {isMobile && (
+          <div style={{ position:"fixed", bottom:0, left:0, right:0, background:T.navy, display:"flex", justifyContent:"space-around", padding:"8px 0 12px", zIndex:100, borderTop:"1px solid rgba(255,255,255,.1)" }}>
+            {NAV.map(n=>(
+              <div key={n.id} onClick={()=>setView(n.id)}
+                style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer", opacity:view===n.id?1:.5, transition:"opacity .15s" }}>
+                <span style={{ fontSize:20 }}>{n.icon}</span>
+                <span style={{ fontSize:9, color:"#fff", fontWeight:view===n.id?700:400 }}>{n.label}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
