@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import TemplateManager from "./TemplateManager";
+import { generateSessionReport } from "./ReportGenerator";
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -659,11 +660,17 @@ function SessionsTab({ userId, patients }) {
               <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
               <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleDateString()} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
             </div>
-            <div style={{ textAlign:"right" }}>
+            <div style={{ textAlign:"right", display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
               <div style={{ fontSize:14, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
               <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
                 {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
               </span>
+              {s.documentation_status==="documented" && (
+                <button onClick={()=>downloadSessionPDF(s, patients)}
+                  style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                  ⬇ PDF
+                </button>
+              )}
             </div>
           </div>
         );
@@ -671,6 +678,27 @@ function SessionsTab({ userId, patients }) {
     </div>
   );
 }
+
+const downloadSessionPDF = async (session, patients) => {
+  const patient = patients.find(p => p.id === session.patient_id);
+  const [progsData, dpData, noteData] = await Promise.all([
+    supabase.from("programs").select("*").eq("patient_id", session.patient_id).eq("status","active"),
+    supabase.from("data_points").select("*").eq("session_id", session.id),
+    supabase.from("session_notes").select("*, note_responses(*)").eq("session_id", session.id).single(),
+  ]);
+  const responses = {};
+  if(noteData.data?.note_responses) {
+    noteData.data.note_responses.forEach(r => { responses[r.section_title||r.section_id] = r.response_text; });
+  }
+  generateSessionReport({
+    session,
+    patient,
+    programs: progsData.data||[],
+    dataPoints: dpData.data||[],
+    sessionNote: noteData.data?.free_text||"",
+    responses,
+  });
+};
 
 // ─── Edit Patient Form ────────────────────────────────────────────────────────
 function EditPatientForm({ patient, onClose, onSave }) {
