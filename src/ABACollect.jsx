@@ -1294,11 +1294,6 @@ const endSession = async () => {
               <span style={{ fontSize:9, color:"#fff", fontWeight:view===n.id?700:400 }}>{n.label}</span>
             </div>
           ))}
-          <div onClick={onLogout}
-            style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer", opacity:.5 }}>
-            <span style={{ fontSize:20 }}>🚪</span>
-            <span style={{ fontSize:9, color:"#fff", fontWeight:400 }}>Logout</span>
-          </div>
         </div>
       )}
       {/* Patient pill */}
