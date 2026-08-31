@@ -1,5 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+
+const useWindowWidth = () => {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+};
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -29,6 +39,8 @@ export default function Auth({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const width = useWindowWidth();
+  const isMobile = width < 640;
 
   const handleLogin = async () => {
     setLoading(true); setError("");
@@ -91,8 +103,7 @@ export default function Auth({ onLogin }) {
       <style>{CSS}</style>
 
       {/* Left panel */}
-      <div style={{ width:420, background:T.navy, display:"flex", flexDirection:"column", justifyContent:"center", padding:"60px 48px", flexShrink:0 }}>
-        <div style={{ fontSize:32, fontWeight:800, color:"#fff", letterSpacing:"-1px", lineHeight:1.2, marginBottom:16 }}>
+        <div style={{ width: isMobile ? 0 : 420, background:T.navy, display:"flex", flexDirection:"column", justifyContent:"center", padding: isMobile ? 0 : "60px 48px", flexShrink:0, overflow:"hidden", transition:"width .2s" }}>          <div style={{ fontSize:32, fontWeight:800, color:"#fff", letterSpacing:"-1px", lineHeight:1.2, marginBottom:16 }}>
           ABA Collect
         </div>
         <div style={{ fontSize:15, color:"rgba(255,255,255,.6)", lineHeight:1.7, marginBottom:48 }}>
@@ -117,6 +128,12 @@ export default function Auth({ onLogin }) {
       {/* Right panel */}
       <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:40 }}>
         <div style={{ width:"100%", maxWidth:400 }}>
+          {isMobile && (
+            <div style={{ textAlign:"center", marginBottom:32 }}>
+              <div style={{ fontSize:28, fontWeight:800, color:T.navy, letterSpacing:"-1px" }}>ABA Collect</div>
+              <div style={{ fontSize:12, color:T.ink3, marginTop:4 }}>RBT Data Platform</div>
+            </div>
+          )}
           <div style={{ fontSize:24, fontWeight:800, color:T.ink, letterSpacing:"-.5px", marginBottom:6 }}>
             {mode==="login" ? "Welcome back" : "Create account"}
           </div>
