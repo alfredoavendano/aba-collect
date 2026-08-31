@@ -1073,6 +1073,7 @@ export default function App({ user, profile, onLogout }) {
   const [sessionActive, setSessionActive] = useState(false);
   const [currentSession, setCurrentSession] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hoveredNav, setHoveredNav] = useState(null);
   const [sessionSecs, setSessionSecs] = useState(0);
   const [toast, setToast] = useState("");
   const width = useWindowWidth();
@@ -1252,18 +1253,34 @@ const endSession = async () => {
         </div>
 
        <div style={{padding:"8px 12px",flex:1,overflowY:"auto",minHeight:0}}>
-            <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"8px 8px 6px",fontWeight:700}}>Workspace</div>
-          {NAV.slice(0,3).map(n=>(
+            {!sidebarCollapsed && <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"8px 8px 6px",fontWeight:700}}>Workspace</div>}          
+            {NAV.slice(0,3).map(n=>(
             <div key={n.id} onClick={()=>setView(n.id)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s"}}>
-              <span style={{fontSize:14,opacity:view===n.id?1:.7}}>{n.icon}</span>{n.label}
+              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav(n.id)}
+              onMouseLeave={()=>setHoveredNav(null)}
+              style={{position:"relative",display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s",justifyContent:sidebarCollapsed?"center":"flex-start"}}>
+              <span style={{fontSize:16,opacity:view===n.id?1:.7}}>{n.icon}</span>
+              {!sidebarCollapsed && n.label}
+              {sidebarCollapsed && hoveredNav===n.id && (
+                <div style={{position:"fixed",left:64,background:"rgba(15,23,42,.95)",color:"#fff",padding:"5px 10px",borderRadius:6,fontSize:12,fontWeight:600,whiteSpace:"nowrap",zIndex:999,pointerEvents:"none"}}>
+                  {n.label}
+                </div>
+              )}
             </div>
           ))}
-          <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"14px 8px 6px",fontWeight:700}}>Analysis</div>
+          {!sidebarCollapsed && <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"14px 8px 6px",fontWeight:700}}>Analysis</div>}
           {NAV.slice(3).map(n=>(
             <div key={n.id} onClick={()=>setView(n.id)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s"}}>
-              <span style={{fontSize:14,opacity:view===n.id?1:.7}}>{n.icon}</span>{n.label}
+              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav(n.id)}
+              onMouseLeave={()=>setHoveredNav(null)}
+              style={{position:"relative",display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===n.id?700:400,color:view===n.id?"#fff":"rgba(255,255,255,.6)",background:view===n.id?"rgba(255,255,255,.12)":"transparent",marginBottom:2,transition:"all .15s",justifyContent:sidebarCollapsed?"center":"flex-start"}}>
+              <span style={{fontSize:16,opacity:view===n.id?1:.7}}>{n.icon}</span>
+              {!sidebarCollapsed && n.label}
+              {sidebarCollapsed && hoveredNav===n.id && (
+                <div style={{position:"fixed",left:64,background:"rgba(15,23,42,.95)",color:"#fff",padding:"5px 10px",borderRadius:6,fontSize:12,fontWeight:600,whiteSpace:"nowrap",zIndex:999,pointerEvents:"none"}}>
+                  {n.label}
+                </div>
+              )}
             </div>
           ))}
         </div>
