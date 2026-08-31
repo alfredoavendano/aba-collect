@@ -1295,18 +1295,27 @@ const endSession = async () => {
           ))}
         </div>
       )}
-        {/* Patient pill */}
-        <div style={{padding:"12px",borderTop:"1px solid rgba(255,255,255,.08)"}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.35)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8,fontWeight:700,padding:"0 4px"}}>Current patient</div>
-          <div onClick={()=>setView("patients")} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:8,background:"rgba(255,255,255,.08)",cursor:"pointer",border:"1px solid rgba(255,255,255,.08)",transition:"all .15s"}}>
-            <div style={{width:32,height:32,borderRadius:"50%",background:patient.color||T.navyMd,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{patient.initials}</div>
+      {/* Patient pill */}
+      <div style={{padding:"12px",borderTop:"1px solid rgba(255,255,255,.08)"}}>
+        {!sidebarCollapsed && <div style={{fontSize:10,color:"rgba(255,255,255,.35)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8,fontWeight:700,padding:"0 4px"}}>Current patient</div>}
+        <div onClick={()=>setView("patients")} title={sidebarCollapsed?patient.name:""}
+          onMouseEnter={()=>sidebarCollapsed&&setHoveredNav("patient")}
+          onMouseLeave={()=>setHoveredNav(null)}
+          style={{position:"relative",display:"flex",alignItems:"center",gap:10,padding:sidebarCollapsed?"8px":"10px 12px",borderRadius:8,background:"rgba(255,255,255,.08)",cursor:"pointer",border:"1px solid rgba(255,255,255,.08)",transition:"all .15s",justifyContent:sidebarCollapsed?"center":"flex-start"}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:patient.color||T.navyMd,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{patient.initials}</div>
+          {!sidebarCollapsed && (
             <div>
               <div style={{fontSize:12,fontWeight:600,color:"#fff"}}>{patient.name}</div>
               <div style={{fontSize:10,color:"rgba(255,255,255,.45)",marginTop:1}}>{patient.diagnosis}</div>
             </div>
-          </div>
+          )}
+          {sidebarCollapsed && hoveredNav==="patient" && (
+            <div style={{position:"fixed",left:64,background:"rgba(15,23,42,.95)",color:"#fff",padding:"5px 10px",borderRadius:6,fontSize:12,fontWeight:600,whiteSpace:"nowrap",zIndex:999,pointerEvents:"none"}}>
+              {patient.name}
+            </div>
+          )}
         </div>
-
+      </div>
         {/* Toggle button*/}
         {!isMobile && (
           <button onClick={()=>setSidebarCollapsed(c=>!c)}
