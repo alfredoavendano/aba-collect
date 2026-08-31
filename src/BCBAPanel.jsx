@@ -418,7 +418,7 @@ function ProgramFormModal({ patients, patientId, program, onClose, onSave }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-      <div style={{ background:T.white, borderRadius:16, padding:32, width:480, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(480px, calc(100vw - 32px))", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
         <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>{program?"Edit program":"New program"}</div>
         <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Program name *</div>
@@ -662,7 +662,7 @@ function EditPatientForm({ patient, onClose, onSave }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-      <div style={{ background:T.white, borderRadius:16, padding:32, width:460, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(460px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
         <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>Edit patient</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
           <div>

@@ -14,6 +14,16 @@ const T = {
   border:  "rgba(15,23,42,.08)", border2: "rgba(15,23,42,.14)",
 };
 
+const useWindowWidth = () => {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return width;
+};
+
 const S = {
   card: {
     background: "#fff",
@@ -482,7 +492,7 @@ function ABCCard({ prog, sessionActive, onRecord, session, userId }) {
       {/* Episode form modal */}
       {showForm && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-          <div style={{ background:T.white, borderRadius:16, padding:28, width:460, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+          <div style={{ background:T.white, borderRadius:16, padding:28, width:"min(460px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
             <div style={{ fontSize:16, fontWeight:800, color:T.ink, marginBottom:4 }}>Record ABC episode</div>
             <div style={{ fontSize:12, color:T.ink3, marginBottom:20 }}>{prog.name}</div>
             <div style={{ marginBottom:12 }}>
@@ -739,7 +749,7 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
           ⚠ Press "Start session" below to begin recording
         </div>
       )}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(360px,100%),1fr))", gap:14 }}>
         {sorted.map(prog=>
           prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
           prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={onRecord} session={currentSession} userId={userId}/> :
@@ -1062,8 +1072,12 @@ export default function App({ user, profile, onLogout }) {
   const [view, setView] = useState("session");
   const [sessionActive, setSessionActive] = useState(false);
   const [currentSession, setCurrentSession] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sessionSecs, setSessionSecs] = useState(0);
   const [toast, setToast] = useState("");
+  const width = useWindowWidth();
+  const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
   const [showSessionNote, setShowSessionNote] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
   const [pendingSessions, setPendingSessions] = useState([]);
@@ -1220,12 +1234,12 @@ const endSession = async () => {
       <style>{CSS}</style>
 
       {/* Sidebar */}
-      <div style={{width:232,background:T.navy,display:"flex",flexDirection:"column",flexShrink:0}}>
+        <div style={{ width: isMobile ? 0 : sidebarCollapsed ? 56 : 232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0, overflow:"hidden", transition:"width .25s", position:"relative" }}>
         <div style={{padding:"24px 20px 20px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-          <div style={{fontSize:17,fontWeight:800,color:"#fff",letterSpacing:"-0.5px"}}>ABA Collect</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.4)",marginTop:3,fontWeight:600,letterSpacing:".08em",textTransform:"uppercase"}}>RBT Platform</div>
-          {profile && (
-            <div style={{marginTop:14,padding:"10px 12px",background:"rgba(255,255,255,.07)",borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
+            {!sidebarCollapsed && <div style={{fontSize:17,fontWeight:800,color:"#fff",letterSpacing:"-0.5px"}}>ABA Collect</div>}
+            {!sidebarCollapsed && <div style={{fontSize:10,color:"rgba(255,255,255,.4)",marginTop:3,fontWeight:600,letterSpacing:".08em",textTransform:"uppercase"}}>RBT Platform</div>}          
+            {profile && !sidebarCollapsed && (
+              <div style={{marginTop:14,padding:"10px 12px",background:"rgba(255,255,255,.07)",borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:28,height:28,borderRadius:"50%",background:T.greenMd,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>
                 {profile.full_name?.[0]?.toUpperCase()||"?"}
               </div>
@@ -1237,7 +1251,7 @@ const endSession = async () => {
           )}
         </div>
 
-<div style={{padding:"8px 12px",flex:1,overflowY:"auto",minHeight:0}}>
+       <div style={{padding:"8px 12px",flex:1,overflowY:"auto",minHeight:0}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".08em",textTransform:"uppercase",padding:"8px 8px 6px",fontWeight:700}}>Workspace</div>
           {NAV.slice(0,3).map(n=>(
             <div key={n.id} onClick={()=>setView(n.id)}
@@ -1253,7 +1267,17 @@ const endSession = async () => {
             </div>
           ))}
         </div>
-
+      {isMobile && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, background:T.navy, display:"flex", justifyContent:"space-around", padding:"8px 0 12px", zIndex:100, borderTop:"1px solid rgba(255,255,255,.1)" }}>
+          {NAV.map(n=>(
+            <div key={n.id} onClick={()=>setView(n.id)}
+              style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, cursor:"pointer", opacity:view===n.id?1:.5, transition:"opacity .15s" }}>
+              <span style={{ fontSize:20 }}>{n.icon}</span>
+              <span style={{ fontSize:9, color:"#fff", fontWeight:view===n.id?700:400 }}>{n.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
         {/* Patient pill */}
         <div style={{padding:"12px",borderTop:"1px solid rgba(255,255,255,.08)"}}>
           <div style={{fontSize:10,color:"rgba(255,255,255,.35)",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8,fontWeight:700,padding:"0 4px"}}>Current patient</div>
@@ -1265,6 +1289,14 @@ const endSession = async () => {
             </div>
           </div>
         </div>
+
+        {/* Toggle button*/}
+        {!isMobile && (
+          <button onClick={()=>setSidebarCollapsed(c=>!c)}
+            style={{ position:"fixed", left: sidebarCollapsed ? 44 : 220, top:"50%", transform:"translateY(-50%)", width:20, height:36, borderRadius:"0 6px 6px 0", background:T.navy, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.6)", fontSize:12, zIndex:10, transition:"left .25s" }}>
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
+        )}
 
         {/* Sign out */}
         <div style={{padding:"8px 12px 16px"}}>

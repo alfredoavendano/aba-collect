@@ -550,7 +550,7 @@ function NewPatientForm({ onClose, onCreate }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-      <div style={{ background:T.white, borderRadius:16, padding:32, width:460, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(480px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
         <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>New patient</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
           <div>
