@@ -781,20 +781,24 @@ function ProgramsView({ programs, profile }) {
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
         {programs.map(prog=>(
-          <Card key={prog.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 20px" }}>
+          <Card key={prog.id} style={{ padding:"16px 20px" }}>
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10, marginBottom:8 }}>
             <div style={{ flex:1 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
                 <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
                 <Badge type={prog.type} />
               </div>
-              <div style={{ fontSize:12, color:T.ink3 }}>{prog.description}</div>
+              <div style={{ fontSize:12, color:T.ink3, lineHeight:1.5 }}>{prog.description}</div>
             </div>
-            <div style={{ textAlign:"right", flexShrink:0 }}>
-              <div style={{ ...S.label, marginBottom:2 }}>Target</div>
-              <div style={{ fontSize:13, fontWeight:600 }}>{prog.target}</div>
+            <span style={{ ...S.badge(T.green,T.greenLt), fontSize:11, flexShrink:0 }}>Active</span>
+          </div>
+          {prog.target && (
+            <div style={{ fontSize:12, color:T.ink3 }}>
+              <span style={{ fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", fontSize:10 }}>Target: </span>
+              {prog.target}
             </div>
-            <span style={{ ...S.badge(T.green,T.greenLt), fontSize:11 }}>Active</span>
-          </Card>
+          )}
+        </Card>
         ))}
       </div>
     </div>
@@ -1332,7 +1336,6 @@ const endSession = async () => {
           </button>
         </div>
       </div>
-
       {/* Main */}
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {/* Topbar */}
