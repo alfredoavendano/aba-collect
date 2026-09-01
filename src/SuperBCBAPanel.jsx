@@ -108,9 +108,27 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
   };
 
   const assignPatientToBCBA = async (patientId, bcbaId) => {
-    await supabase.from("patients").update({ bcba_id:bcbaId }).eq("id",patientId);
+    console.log("Assigning BCBA", bcbaId, "to patient", patientId);
+    const { error } = await supabase.from("patients").update({ bcba_id:bcbaId }).eq("id",patientId);
+    console.log("Result:", error);
     showToast("Patient assigned to BCBA ✓"); loadData();
   };
+
+  const assignRBTtoPatient = async (patientId, rbtId) => {
+  const existing = assignments.find(a=>a.patient_id===patientId&&a.rbt_id===rbtId);
+  if(existing) {
+    // Toggle off — remove this RBT
+    await supabase.from("patient_assignments").delete().eq("patient_id",patientId).eq("rbt_id",rbtId);
+    showToast("RBT unassigned");
+  } else {
+    // Remove any existing RBT for this patient first
+    await supabase.from("patient_assignments").delete().eq("patient_id",patientId);
+    // Then assign the new one
+    await supabase.from("patient_assignments").insert({ patient_id:patientId, rbt_id:rbtId });
+    showToast("RBT assigned ✓");
+  }
+  loadData();
+};
 
   const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
 
@@ -205,7 +223,7 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
           ) : tab==="overview" ? (
             <OverviewTab patients={patients} bcbas={bcbas} rbts={rbts} sessions={sessions} fmtHMS={fmtHMS} />
           ) : tab==="patients" ? (
-            <PatientsTab patients={patients} bcbas={bcbas} assignments={assignments} rbts={rbts} onAssign={assignPatientToBCBA} onCreate={createPatient} onEdit={editPatient} />
+            <PatientsTab patients={patients} bcbas={bcbas} assignments={assignments} rbts={rbts} onAssign={assignPatientToBCBA} onCreate={createPatient} onEdit={editPatient} onAssignRBT={assignRBTtoPatient} />
           ) : tab==="bcbas" ? (
             <BCBAsTab bcbas={bcbas} patients={patients} />
           ) : tab==="rbts" ? (
@@ -297,7 +315,7 @@ function OverviewTab({ patients, bcbas, rbts, sessions, fmtHMS }) {
   );
 }
 
-function PatientsTab({ patients, bcbas, assignments, rbts, onAssign, onCreate, onEdit }) {
+function PatientsTab({ patients, bcbas, assignments, rbts, onAssign, onCreate, onEdit, onAssignRBT }) {
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [editingPatient, setEditingPatient] = useState(null);
@@ -352,6 +370,20 @@ function PatientsTab({ patients, bcbas, assignments, rbts, onAssign, onCreate, o
                     <button key={b.id} onClick={()=>onAssign(patient.id,b.id)}
                       style={{ fontSize:12, padding:"7px 14px", borderRadius:8, border:`1px solid ${patient.bcba_id===b.id?T.green:T.border2}`, background:patient.bcba_id===b.id?T.greenLt:"transparent", color:patient.bcba_id===b.id?T.green:T.ink2, cursor:"pointer", fontWeight:patient.bcba_id===b.id?700:400 }}>
                       {patient.bcba_id===b.id?"✓ ":""}{b.full_name}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", margin:"14px 0 8px" }}>Assign RBT</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {rbts.map(r=>(
+                    <button key={r.id} onClick={()=>onAssignRBT(patient.id, r.id)}
+                      style={{ fontSize:12, padding:"7px 14px", borderRadius:8, 
+                        border:`1px solid ${assignments.find(a=>a.patient_id===patient.id&&a.rbt_id===r.id)?T.green:T.border2}`, 
+                        background:assignments.find(a=>a.patient_id===patient.id&&a.rbt_id===r.id)?T.greenLt:"transparent", 
+                        color:assignments.find(a=>a.patient_id===patient.id&&a.rbt_id===r.id)?T.green:T.ink2, 
+                        cursor:"pointer", 
+                        fontWeight:assignments.find(a=>a.patient_id===patient.id&&a.rbt_id===r.id)?700:400 }}>
+                      {assignments.find(a=>a.patient_id===patient.id&&a.rbt_id===r.id)?"✓ ":""}{r.full_name}
                     </button>
                   ))}
                 </div>
