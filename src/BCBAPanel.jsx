@@ -211,11 +211,7 @@ export default function BCBAPanel({ user, profile, onLogout }) {
 
 // ─── Patients Tab ─────────────────────────────────────────────────────────────
 function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, onEdit, expanded, setExpanded, onViewDashboard }) {
-  <div style={{ marginBottom:16 }}>
-  <input placeholder="Search patients…" value={search} onChange={e=>setSearch(e.target.value)}
-    style={{ width:"100%", padding:"9px 14px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", fontFamily:"inherit" }} />
-  </div>
-  const [editingPatient, setEditingPatient] = useState(null);
+    const [editingPatient, setEditingPatient] = useState(null);
   const [search, setSearch] = useState("");
   const filtered = patients.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -229,6 +225,10 @@ function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, 
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      <div style={{ marginBottom:16 }}>
+      <input placeholder="Search patients…" value={search} onChange={e=>setSearch(e.target.value)}
+        style={{ width:"100%", padding:"9px 14px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", fontFamily:"inherit" }} />
+      </div>
       {editingPatient && (
         <EditPatientForm patient={editingPatient} onClose={() => setEditingPatient(null)}
           onSave={async (data) => { await onEdit(data); setEditingPatient(null); }} />
@@ -291,14 +291,14 @@ function PatientsTab({ patients, rbts, getRBTsForPatient, onAssign, onUnassign, 
                         </button>
                       ))}
                     </div>
-                    <div style={{ marginTop:12 }}>
-                      <button onClick={()=>onViewDashboard(patient)}
-                        style={{ width:"100%", padding:"9px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.navyLt, color:T.navy, fontSize:13, fontWeight:600, cursor:"pointer" }}>
-                        📊 View patient dashboard
-                      </button>
-                    </div>
                   </>
                 )}
+                <div style={{ marginTop:12 }}>
+                  <button onClick={()=>onViewDashboard(patient)}
+                    style={{ width:"100%", padding:"9px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.navyLt, color:T.navy, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                    📊 View patient dashboard
+                  </button>
+                </div>
               </div>
             )}
           </div>
