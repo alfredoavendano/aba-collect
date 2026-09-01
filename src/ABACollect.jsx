@@ -1347,10 +1347,6 @@ const endSession = async () => {
           <div style={{fontSize:20,fontWeight:800,color:T.ink,letterSpacing:"-0.5px"}}>{viewTitles[view]}</div>
           <div style={{fontSize:12,color:T.ink3,marginTop:3}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
         </div>
-          <div>
-            <div style={{fontSize:20,fontWeight:800,color:T.ink,letterSpacing:"-0.5px"}}>{viewTitles[view]}</div>
-            <div style={{fontSize:12,color:T.ink3,marginTop:3}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
-          </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             {sessionActive ? (
               <span style={{display:"inline-flex",alignItems:"center",gap:6,background:T.greenLt,color:T.green,fontSize:12,fontWeight:700,padding:"6px 14px",borderRadius:99,border:`1px solid ${T.greenMd}30`}}>
