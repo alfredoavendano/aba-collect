@@ -981,7 +981,7 @@ setLoading(false);
       </Card>
 
       {/* Metrics */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(140px,100%),1fr))", gap:12, marginBottom:20 }}>
         {metrics.map((m,i)=>(
           <Card key={i} style={{ padding:"16px 20px" }}>
             <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>{m.label}</div>
@@ -991,7 +991,7 @@ setLoading(false);
       </div>
 
       {/* Charts per program */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(280px,100%),1fr))", gap:14 }}>
         {programs.map(prog => {
           const series = getSeriesForProgram(enrichProg(prog));
           const ep = enrichProg(prog);
@@ -1036,7 +1036,7 @@ setLoading(false);
 // ─── Reports view ─────────────────────────────────────────────────────────────
 function ReportsView({ patient }) {
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(280px,100%),1fr))", gap:16 }}>
       <Card>
         <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>Weekly progress report</div>
         <div style={{ fontSize:12, color:T.ink3, marginBottom:16 }}>Auto-generated</div>
