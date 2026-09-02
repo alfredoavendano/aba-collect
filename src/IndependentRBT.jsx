@@ -592,10 +592,16 @@ null                    )}
                         </div>
                         <div style={{ fontSize:12, color:T.ink3, marginBottom:10 }}>{p.diagnosis}</div>
                         <div style={{ fontSize:11, color:T.ink3, marginBottom:12 }}>{progs.length} programs</div>
-                        <button onClick={e=>{e.stopPropagation();setEditingPatient(p);}}
-                          style={{ width:"100%", padding:"7px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
-                          ✏️ Edit patient
-                        </button>
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button onClick={e=>{e.stopPropagation();setSelectedPatientId(p.id);}}
+                            style={{ flex:1, padding:"7px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                            ✓ Select
+                          </button>
+                          <button onClick={e=>{e.stopPropagation();setEditingPatient(p);}}
+                            style={{ flex:1, padding:"7px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
+                            ✏️ Edit
+                          </button>
+                        </div>
                       </Card>
                     );
                   })}

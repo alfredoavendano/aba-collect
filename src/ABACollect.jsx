@@ -1081,7 +1081,7 @@ export default function App({ user, profile, onLogout }) {
   const [sessionSecs, setSessionSecs] = useState(0);
   const [toast, setToast] = useState("");
   const width = useWindowWidth();
-  const isMobile = true;
+  const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
   const [showSessionNote, setShowSessionNote] = useState(false);
   const [completedSession, setCompletedSession] = useState(null);
