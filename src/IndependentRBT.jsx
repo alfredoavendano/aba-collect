@@ -521,10 +521,14 @@ export default function IndependentRBT({ user, profile, onLogout }) {
                   )}
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(360px,100%),1fr))", gap:14 }}>
                     {patientPrograms.map(prog=>
-                    prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-                    prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-                    prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-                    <Card key={prog.id}>
+                      prog.type==="frequency"            ? <FrequencyCard       key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+                      prog.type==="duration"             ? <DurationCard        key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+                      prog.type==="rate"                 ? <RateCard            key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+                      prog.type==="partial_interval" || prog.type==="whole_interval" || prog.type==="momentary_time_sampling"
+                                                        ? <IntervalCard        key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+                      prog.type==="abc_data"             ? <ABCCard             key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+                      prog.type==="scatterplot"          ? <ScatterplotCard     key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+                      prog.type==="permanent_product"    ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :                    <Card key={prog.id}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
                         <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
                         <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:typeInfo[prog.type]?.bg||T.bg2, color:typeInfo[prog.type]?.color||T.ink3 }}>{typeInfo[prog.type]?.label||prog.type}</span>
