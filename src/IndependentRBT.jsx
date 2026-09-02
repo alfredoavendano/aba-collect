@@ -29,11 +29,16 @@ const fmtHMS = (s) => `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Ma
 const age = (dob) => dob ? Math.floor((Date.now()-new Date(dob))/(365.25*864e5)) : "—";
 
 const typeInfo = {
-  frequency:{ label:"Frequency", color:T.red,    bg:T.redLt    },
-  duration: { label:"Duration",  color:T.amber,  bg:T.amberLt  },
-  interval: { label:"Interval",  color:T.purple, bg:T.purpleLt },
-  rate:     { label:"Rate",      color:T.green,  bg:T.greenLt  },
-  latency:  { label:"Latency",   color:T.navy,   bg:T.navyLt   },
+  frequency:               { label:"Frequency",         color:T.red,    bg:T.redLt    },
+  duration:                { label:"Duration",          color:T.amber,  bg:T.amberLt  },
+  partial_interval:        { label:"Partial Interval",  color:T.purple, bg:T.purpleLt },
+  whole_interval:          { label:"Whole Interval",    color:T.purple, bg:T.purpleLt },
+  momentary_time_sampling: { label:"MTS",               color:T.purple, bg:T.purpleLt },
+  rate:                    { label:"Rate",              color:T.green,  bg:T.greenLt  },
+  latency:                 { label:"Latency",           color:T.navy,   bg:T.navyLt   },
+  abc_data:                { label:"ABC Data",          color:"#0369A1", bg:"#E0F2FE"  },
+  scatterplot:             { label:"Scatterplot",       color:"#92400E", bg:"#FEF3C7"  },
+  permanent_product:       { label:"Permanent Product", color:"#065F46", bg:"#D1FAE5"  },
 };
 
 const enrichProg = (p) => ({ ...p, color:typeInfo[p.type]?.color||T.ink3, colorLt:typeInfo[p.type]?.bg||T.bg2 });
