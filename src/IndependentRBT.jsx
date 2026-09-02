@@ -29,11 +29,16 @@ const fmtHMS = (s) => `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Ma
 const age = (dob) => dob ? Math.floor((Date.now()-new Date(dob))/(365.25*864e5)) : "—";
 
 const typeInfo = {
-  frequency:{ label:"Frequency", color:T.red,    bg:T.redLt    },
-  duration: { label:"Duration",  color:T.amber,  bg:T.amberLt  },
-  interval: { label:"Interval",  color:T.purple, bg:T.purpleLt },
-  rate:     { label:"Rate",      color:T.green,  bg:T.greenLt  },
-  latency:  { label:"Latency",   color:T.navy,   bg:T.navyLt   },
+  frequency:           { label:"Frequency",          color:T.red,    bg:T.redLt    },
+  duration:            { label:"Duration",           color:T.amber,  bg:T.amberLt  },
+  partial_interval:    { label:"Partial Interval",   color:T.purple, bg:T.purpleLt },
+  whole_interval:      { label:"Whole Interval",     color:T.purple, bg:T.purpleLt },
+  momentary_time_sampling: { label:"MTS",            color:T.purple, bg:T.purpleLt },
+  rate:                { label:"Rate",               color:T.green,  bg:T.greenLt  },
+  latency:             { label:"Latency",            color:T.navy,   bg:T.navyLt   },
+  abc_data:            { label:"ABC Data",           color:"#0369A1", bg:"#E0F2FE"  },
+  scatterplot:         { label:"Scatterplot",        color:"#92400E", bg:"#FEF3C7"  },
+  permanent_product:   { label:"Permanent Product",  color:"#065F46", bg:"#D1FAE5"  },
 };
 
 const enrichProg = (p) => ({ ...p, color:typeInfo[p.type]?.color||T.ink3, colorLt:typeInfo[p.type]?.bg||T.bg2 });
@@ -83,37 +88,23 @@ function PatientFormModal({ patient, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const COLORS = ["#378ADD","#1D9E75","#E24B4A","#EF9F27","#7F77DD","#D85A30"];
   const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13, border:`1px solid ${T.border2}`, background:T.white, outline:"none", color:T.ink, fontFamily:"inherit" };
-
   const handleSave = async () => {
     if (!name||!initials) return;
     setSaving(true);
     await onSave({ id:patient?.id, name, initials, dob:dob||null, diagnosis, color });
     setSaving(false);
   };
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
       <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(460px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
         <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>{patient?"Edit patient":"New patient"}</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Full name *</div>
-            <input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} placeholder="John Smith" />
-          </div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Initials *</div>
-            <input value={initials} onChange={e=>setInitials(e.target.value.toUpperCase())} style={inputStyle} placeholder="JS" maxLength={3} />
-          </div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Full name *</div><input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} placeholder="John Smith" /></div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Initials *</div><input value={initials} onChange={e=>setInitials(e.target.value.toUpperCase())} style={inputStyle} placeholder="JS" maxLength={3} /></div>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Date of birth</div>
-            <input type="date" value={dob} onChange={e=>setDob(e.target.value)} style={inputStyle} />
-          </div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Diagnosis</div>
-            <input value={diagnosis} onChange={e=>setDiagnosis(e.target.value)} style={inputStyle} placeholder="ASD Level 2" />
-          </div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Date of birth</div><input type="date" value={dob} onChange={e=>setDob(e.target.value)} style={inputStyle} /></div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Diagnosis</div><input value={diagnosis} onChange={e=>setDiagnosis(e.target.value)} style={inputStyle} placeholder="ASD Level 2" /></div>
         </div>
         <div style={{ marginBottom:24 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Color</div>
@@ -123,8 +114,7 @@ function PatientFormModal({ patient, onClose, onSave }) {
         </div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
-          <button onClick={handleSave} disabled={!name||!initials||saving}
-            style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+          <button onClick={handleSave} disabled={!name||!initials||saving} style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
             {saving?"Saving…":patient?"Save changes":"Create patient"}
           </button>
         </div>
@@ -142,14 +132,12 @@ function ProgramFormModal({ patientId, program, onClose, onSave }) {
   const [direction, setDirection] = useState(program?.direction||"decrease");
   const [saving, setSaving] = useState(false);
   const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13, border:`1px solid ${T.border2}`, background:T.white, outline:"none", color:T.ink, fontFamily:"inherit" };
-
   const handleSave = async () => {
     if (!name||!type) return;
     setSaving(true);
     await onSave({ id:program?.id, patient_id:patientId, name, type, description, target, target_val:parseFloat(targetVal)||null, direction, status:"active" });
     setSaving(false);
   };
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
       <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(480px, calc(100vw - 32px))", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
@@ -159,42 +147,20 @@ function ProgramFormModal({ patientId, program, onClose, onSave }) {
           <input value={name} onChange={e=>setName(e.target.value)} style={inputStyle} placeholder="e.g. Self-injurious behavior" />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Data type *</div>
-            <select value={type} onChange={e=>setType(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
-              {Object.entries(typeInfo).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Direction</div>
-            <select value={direction} onChange={e=>setDirection(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
-              <option value="decrease">Decrease</option>
-              <option value="increase">Increase</option>
-            </select>
-          </div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Data type *</div><select value={type} onChange={e=>setType(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>{Object.entries(typeInfo).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Direction</div><select value={direction} onChange={e=>setDirection(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}><option value="decrease">Decrease</option><option value="increase">Increase</option></select></div>
         </div>
         <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Description</div>
-          <textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3}
-            placeholder="Brief description of this behavior or skill…"
-            style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
+          <textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} placeholder="Brief description…" style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:24 }}>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Target</div>
-            <input value={target} onChange={e=>setTarget(e.target.value)} style={inputStyle} placeholder="e.g. < 2 per session" />
-          </div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Target value</div>
-            <input type="number" value={targetVal} onChange={e=>setTargetVal(e.target.value)} style={inputStyle} placeholder="e.g. 2" />
-          </div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Target</div><input value={target} onChange={e=>setTarget(e.target.value)} style={inputStyle} placeholder="e.g. < 2 per session" /></div>
+          <div><div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Target value</div><input type="number" value={targetVal} onChange={e=>setTargetVal(e.target.value)} style={inputStyle} placeholder="e.g. 2" /></div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
-          <button onClick={handleSave} disabled={!name||saving}
-            style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
-            {saving?"Saving…":program?"Save changes":"Create program"}
-          </button>
+          <button onClick={handleSave} disabled={!name||saving} style={{ flex:1, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>{saving?"Saving…":program?"Save changes":"Create program"}</button>
         </div>
       </div>
     </div>
@@ -287,10 +253,11 @@ export default function IndependentRBT({ user, profile, onLogout }) {
   const [pendingSessions, setPendingSessions] = useState([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hoveredNav, setHoveredNav] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const timerRef = useRef(null);
   const toastRef = useRef(null);
   const width = useWindowWidth();
-  const isMobile = width < 768;
+  const isMobile = width < 1024;
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { loadPendingSessions(); }, [selectedPatientId]);
@@ -337,15 +304,8 @@ export default function IndependentRBT({ user, profile, onLogout }) {
   };
 
   const saveProgram = async (data) => {
-    if(data.id) {
-      const { id, ...rest } = data;
-      await supabase.from("programs").update(rest).eq("id",id);
-      showToast("Program updated ✓");
-    } else {
-      const { id, ...rest } = data;
-      await supabase.from("programs").insert(rest);
-      showToast("Program created ✓");
-    }
+    if(data.id) { const { id, ...rest } = data; await supabase.from("programs").update(rest).eq("id",id); showToast("Program updated ✓"); }
+    else { const { id, ...rest } = data; await supabase.from("programs").insert(rest); showToast("Program created ✓"); }
     loadData();
   };
 
@@ -380,12 +340,13 @@ export default function IndependentRBT({ user, profile, onLogout }) {
   const patientPrograms = programsByPatient[selectedPatientId]||[];
 
   const NAV = [
-    {id:"session",  label:"Session",  icon:"⏺"},
-    {id:"programs", label:"Programs", icon:"📋"},
-    {id:"patients", label:"Patients", icon:"👥"},
+    {id:"session",   label:"Session",   icon:"⏺"},
+    {id:"programs",  label:"Programs",  icon:"📋"},
+    {id:"patients",  label:"Patients",  icon:"👥"},
+    {id:"dashboard", label:"Dashboard", icon:"📊"},
   ];
 
-  const viewTitles = { session:"Session recording", programs:"Treatment programs", patients:"My patients" };
+  const viewTitles = { session:"Session recording", programs:"Treatment programs", patients:"My patients", dashboard:"Dashboard" };
 
   if(loading) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", flexDirection:"column", gap:16, background:T.bg, fontFamily:"'Inter',system-ui,sans-serif" }}>
@@ -403,10 +364,7 @@ export default function IndependentRBT({ user, profile, onLogout }) {
           <div style={{ fontSize:13, color:T.ink3 }}>— Session note</div>
         </div>
         <SessionNote session={completedSession} patient={patient} programs={patientPrograms} user={user}
-          onComplete={async()=>{
-            if(completedSession){ await supabase.from("sessions").update({documentation_status:"documented"}).eq("id",completedSession.id); }
-            setShowSessionNote(false); setCompletedSession(null); loadPendingSessions(); showToast("Note saved ✓");
-          }}
+          onComplete={async()=>{ if(completedSession){ await supabase.from("sessions").update({documentation_status:"documented"}).eq("id",completedSession.id); } setShowSessionNote(false); setCompletedSession(null); loadPendingSessions(); showToast("Note saved ✓"); }}
           onSkip={()=>{ setShowSessionNote(false); setCompletedSession(null); showToast("Session ended · Note skipped"); }}
         />
       </div>
@@ -422,88 +380,97 @@ export default function IndependentRBT({ user, profile, onLogout }) {
       {showProgramForm && <ProgramFormModal patientId={selectedPatientId} onClose={()=>setShowProgramForm(false)} onSave={async d=>{await saveProgram(d);setShowProgramForm(false);}} />}
       {editingProgram && <ProgramFormModal patientId={selectedPatientId} program={editingProgram} onClose={()=>setEditingProgram(null)} onSave={async d=>{await saveProgram(d);setEditingProgram(null);}} />}
 
-      {/* Sidebar */}
-      <div style={{ width: isMobile ? 0 : sidebarCollapsed ? 56 : 232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0, overflow:"hidden", transition:"width .25s", position:"relative" }}>
-        <div style={{ padding: sidebarCollapsed ? "16px 8px" : "24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)", transition:"padding .25s" }}>
-          {!sidebarCollapsed && <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>}
-          {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>Independent RBT</div>}
-          {!sidebarCollapsed && (
-            <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(255,255,255,.07)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
-              <div style={{ width:28, height:28, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
-                {profile.full_name?.[0]?.toUpperCase()||"?"}
-              </div>
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{profile.full_name}</div>
-                <div style={{ fontSize:9, color:"rgba(255,255,255,.45)", marginTop:1, textTransform:"uppercase", letterSpacing:".05em" }}>INDEPENDENT RBT</div>
-              </div>
+      {/* Mobile menu overlay */}
+      {isMobile && menuOpen && (
+        <div style={{ position:"fixed", inset:0, zIndex:200 }}>
+          <div onClick={()=>setMenuOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,.4)" }}/>
+          <div style={{ position:"absolute", left:0, top:0, bottom:0, width:260, background:T.navy, display:"flex", flexDirection:"column" }}>
+            <div style={{ padding:"24px 20px 16px", borderBottom:"1px solid rgba(255,255,255,.1)" }}>
+              <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>ABA Collect</div>
+              <div style={{ fontSize:11, color:"rgba(255,255,255,.5)", marginTop:4 }}>{profile?.full_name}</div>
             </div>
-          )}
-          {sidebarCollapsed && (
-            <div style={{ width:32, height:32, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", margin:"0 auto" }}>
-              {profile.full_name?.[0]?.toUpperCase()||"?"}
-            </div>
-          )}
-        </div>
-
-        <div style={{ padding:"8px 8px", flex:1, overflowY:"auto" }}>
-          {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", letterSpacing:".08em", textTransform:"uppercase", padding:"8px 8px 6px", fontWeight:700 }}>Workspace</div>}
-          {NAV.map(n=>(
-            <div key={n.id} onClick={()=>setView(n.id)}
-              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav(n.id)}
-              onMouseLeave={()=>setHoveredNav(null)}
-              style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:"7px 10px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:view===n.id?700:400, color:view===n.id?"#fff":"rgba(255,255,255,.6)", background:view===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:2, transition:"all .15s", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
-              <span style={{ fontSize:16 }}>{n.icon}</span>
-              {!sidebarCollapsed && n.label}
-              {sidebarCollapsed && hoveredNav===n.id && (
-                <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>
-                  {n.label}
+            <div style={{ padding:"12px", flex:1 }}>
+              {NAV.map(n=>(
+                <div key={n.id} onClick={()=>{ setView(n.id); setMenuOpen(false); }}
+                  style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:8, cursor:"pointer", fontSize:14, fontWeight:view===n.id?700:400, color:view===n.id?"#fff":"rgba(255,255,255,.6)", background:view===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:4 }}>
+                  <span style={{ fontSize:18 }}>{n.icon}</span>{n.label}
                 </div>
-              )}
+              ))}
             </div>
-          ))}
+            <div style={{ padding:"16px", borderTop:"1px solid rgba(255,255,255,.1)" }}>
+              <button onClick={onLogout} style={{ width:"100%", padding:"12px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.15)", background:"transparent", fontSize:13, fontWeight:600, cursor:"pointer", color:"rgba(255,255,255,.6)" }}>
+                🚪 Sign out
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {!isMobile && (
+      {/* Sidebar — desktop only */}
+      {!isMobile && (
+        <div style={{ width: sidebarCollapsed ? 56 : 232, background:T.navy, display:"flex", flexDirection:"column", flexShrink:0, overflow:"hidden", transition:"width .25s", position:"relative" }}>
+          <div style={{ padding: sidebarCollapsed ? "16px 8px" : "24px 20px 20px", borderBottom:"1px solid rgba(255,255,255,.08)", transition:"padding .25s" }}>
+            {!sidebarCollapsed && <div style={{ fontSize:17, fontWeight:800, color:"#fff", letterSpacing:"-.5px" }}>ABA Collect</div>}
+            {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.4)", marginTop:3, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase" }}>Independent RBT</div>}
+            {!sidebarCollapsed && (
+              <div style={{ marginTop:14, padding:"10px 12px", background:"rgba(255,255,255,.07)", borderRadius:8, display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:28, height:28, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>{profile.full_name?.[0]?.toUpperCase()||"?"}</div>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{profile.full_name}</div>
+                  <div style={{ fontSize:9, color:"rgba(255,255,255,.45)", marginTop:1, textTransform:"uppercase", letterSpacing:".05em" }}>INDEPENDENT RBT</div>
+                </div>
+              </div>
+            )}
+            {sidebarCollapsed && (
+              <div style={{ width:32, height:32, borderRadius:"50%", background:T.greenMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", margin:"0 auto" }}>{profile.full_name?.[0]?.toUpperCase()||"?"}</div>
+            )}
+          </div>
+          <div style={{ padding:"8px 8px", flex:1, overflowY:"auto" }}>
+            {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", letterSpacing:".08em", textTransform:"uppercase", padding:"8px 8px 6px", fontWeight:700 }}>Workspace</div>}
+            {NAV.map(n=>(
+              <div key={n.id} onClick={()=>setView(n.id)}
+                onMouseEnter={()=>sidebarCollapsed&&setHoveredNav(n.id)}
+                onMouseLeave={()=>setHoveredNav(null)}
+                style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:"7px 10px", borderRadius:8, cursor:"pointer", fontSize:13, fontWeight:view===n.id?700:400, color:view===n.id?"#fff":"rgba(255,255,255,.6)", background:view===n.id?"rgba(255,255,255,.12)":"transparent", marginBottom:2, transition:"all .15s", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
+                <span style={{ fontSize:16 }}>{n.icon}</span>
+                {!sidebarCollapsed && n.label}
+                {sidebarCollapsed && hoveredNav===n.id && (
+                  <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>{n.label}</div>
+                )}
+              </div>
+            ))}
+          </div>
           <button onClick={()=>setSidebarCollapsed(c=>!c)}
             style={{ position:"fixed", left: sidebarCollapsed ? 44 : 220, top:"50%", transform:"translateY(-50%)", width:20, height:36, borderRadius:"0 6px 6px 0", background:T.navy, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.6)", fontSize:12, zIndex:10, transition:"left .25s" }}>
             {sidebarCollapsed ? "›" : "‹"}
           </button>
-        )}
-
-        {patient && (
-          <div style={{ padding:"12px", borderTop:"1px solid rgba(255,255,255,.08)" }}>
-            {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8, fontWeight:700, padding:"0 4px" }}>Current patient</div>}
-            <div onClick={()=>setView("patients")}
-              onMouseEnter={()=>sidebarCollapsed&&setHoveredNav("patient")}
-              onMouseLeave={()=>setHoveredNav(null)}
-              style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:sidebarCollapsed?"8px":"10px 12px", borderRadius:8, background:"rgba(255,255,255,.08)", cursor:"pointer", border:"1px solid rgba(255,255,255,.08)", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
-              <div style={{ width:32, height:32, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>{patient.initials}</div>
-              {!sidebarCollapsed && (
-                <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{patient.name}</div>
-                  <div style={{ fontSize:10, color:"rgba(255,255,255,.45)", marginTop:1 }}>{patient.diagnosis}</div>
-                </div>
-              )}
-              {sidebarCollapsed && hoveredNav==="patient" && (
-                <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>
-                  {patient.name}
-                </div>
-              )}
+          {patient && (
+            <div style={{ padding:"12px", borderTop:"1px solid rgba(255,255,255,.08)" }}>
+              {!sidebarCollapsed && <div style={{ fontSize:9, color:"rgba(255,255,255,.35)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:8, fontWeight:700, padding:"0 4px" }}>Current patient</div>}
+              <div onClick={()=>setView("patients")} onMouseEnter={()=>sidebarCollapsed&&setHoveredNav("patient")} onMouseLeave={()=>setHoveredNav(null)}
+                style={{ position:"relative", display:"flex", alignItems:"center", gap:10, padding:sidebarCollapsed?"8px":"10px 12px", borderRadius:8, background:"rgba(255,255,255,.08)", cursor:"pointer", border:"1px solid rgba(255,255,255,.08)", justifyContent:sidebarCollapsed?"center":"flex-start" }}>
+                <div style={{ width:32, height:32, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>{patient.initials}</div>
+                {!sidebarCollapsed && <div><div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{patient.name}</div><div style={{ fontSize:10, color:"rgba(255,255,255,.45)", marginTop:1 }}>{patient.diagnosis}</div></div>}
+                {sidebarCollapsed && hoveredNav==="patient" && <div style={{ position:"fixed", left:64, background:"rgba(15,23,42,.95)", color:"#fff", padding:"5px 10px", borderRadius:6, fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:999, pointerEvents:"none" }}>{patient.name}</div>}
+              </div>
             </div>
+          )}
+          <div style={{ padding:"8px 12px 16px" }}>
+            <button onClick={onLogout} style={{ width:"100%", padding:"8px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.12)", background:"transparent", fontSize:12, fontWeight:500, cursor:"pointer", color:"rgba(255,255,255,.5)" }}>
+              {sidebarCollapsed ? "→" : "Sign out"}
+            </button>
           </div>
-        )}
-
-        <div style={{ padding:"8px 12px 16px" }}>
-          <button onClick={onLogout} style={{ width:"100%", padding:"8px 0", borderRadius:8, border:"1px solid rgba(255,255,255,.12)", background:"transparent", fontSize:12, fontWeight:500, cursor:"pointer", color:"rgba(255,255,255,.5)" }}>
-            {sidebarCollapsed ? "→" : "Sign out"}
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Main */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-        <div style={{ padding:"16px 28px", borderBottom:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-          <div>
+        {/* Header */}
+        <div style={{ padding:"16px 20px", borderBottom:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
+          {isMobile && (
+            <button onClick={()=>setMenuOpen(true)} style={{ fontSize:22, background:"none", border:"none", cursor:"pointer", color:T.ink2, padding:4, display:"flex", alignItems:"center" }}>☰</button>
+          )}
+          <div style={{ flex:1 }}>
             <div style={{ fontSize:20, fontWeight:800, color:T.ink, letterSpacing:"-.5px" }}>{viewTitles[view]}</div>
             <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</div>
           </div>
@@ -520,7 +487,8 @@ export default function IndependentRBT({ user, profile, onLogout }) {
           </div>
         </div>
 
-        <div style={{ flex:1, overflowY:"auto", padding:28 }}>
+        {/* Content */}
+        <div style={{ flex:1, overflowY:"auto", padding:28, paddingBottom: isMobile ? 80 : 28 }}>
           {view==="session" && (
             <div>
               {patients.length===0 ? (
@@ -534,9 +502,7 @@ export default function IndependentRBT({ user, profile, onLogout }) {
                 <div>
                   {pendingSessions.length>0 && (
                     <div style={{ background:T.amberLt, border:`1px solid ${T.amberMd}40`, borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
-                      <div style={{ fontSize:14, fontWeight:700, color:T.amber, marginBottom:10 }}>
-                        {pendingSessions.length} session{pendingSessions.length>1?"s":""} pending documentation
-                      </div>
+                      <div style={{ fontSize:14, fontWeight:700, color:T.amber, marginBottom:10 }}>{pendingSessions.length} session{pendingSessions.length>1?"s":""} pending documentation</div>
                       {pendingSessions.map(s=>(
                         <div key={s.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff", borderRadius:8, padding:"10px 14px", marginBottom:6 }}>
                           <div>
@@ -555,10 +521,17 @@ export default function IndependentRBT({ user, profile, onLogout }) {
                   )}
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(360px,100%),1fr))", gap:14 }}>
                     {patientPrograms.map(prog=>
-                      prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-                      prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-                      prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> : null
-                    )}
+                    prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+                    prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+                    prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+                    <Card key={prog.id}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                        <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
+                        <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:typeInfo[prog.type]?.bg||T.bg2, color:typeInfo[prog.type]?.color||T.ink3 }}>{typeInfo[prog.type]?.label||prog.type}</span>
+                      </div>
+                      <div style={{ fontSize:12, color:T.ink3, lineHeight:1.5, marginBottom:8 }}>{prog.description}</div>
+                      <div style={{ fontSize:12, color:T.ink3 }}>This program type is recorded via the main ABA Collect app</div>
+                    </Card>                    )}
                   </div>
                 </div>
               )}
@@ -567,31 +540,31 @@ export default function IndependentRBT({ user, profile, onLogout }) {
 
           {view==="programs" && (
             <div>
-              {!patient ? (
-                <Card style={{ textAlign:"center", padding:40, color:T.ink3 }}>Select a patient first</Card>
-              ) : patientPrograms.length===0 ? (
+              {!patient ? <Card style={{ textAlign:"center", padding:40, color:T.ink3 }}>Select a patient first</Card> :
+              patientPrograms.length===0 ? (
                 <Card style={{ textAlign:"center", padding:60 }}>
                   <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
                   <div style={{ fontSize:18, fontWeight:700, color:T.ink2, marginBottom:6 }}>No programs yet</div>
-                  <div style={{ fontSize:13, color:T.ink3, marginBottom:20 }}>Add treatment programs for {patient.name}</div>
                   <Btn onClick={()=>setShowProgramForm(true)} variant="primary" style={{ margin:"0 auto" }}>+ Add program</Btn>
                 </Card>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                   {patientPrograms.map(prog=>(
-                    <Card key={prog.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 20px" }}>
-                      <div style={{ flex:1 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                          <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
-                          <Badge type={prog.type} />
+                    <Card key={prog.id} style={{ padding:"16px 20px" }}>
+                      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10, marginBottom:8 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
+                            <div style={{ fontSize:15, fontWeight:700 }}>{prog.name}</div>
+                            <Badge type={prog.type} />
+                          </div>
+                          <div style={{ fontSize:12, color:T.ink3, lineHeight:1.5 }}>{prog.description}</div>
                         </div>
-                        <div style={{ fontSize:12, color:T.ink3, lineHeight:1.5 }}>{prog.description}</div>
-                        <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>Target: {prog.target} · {prog.direction}</div>
+                        <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                          <button onClick={()=>setEditingProgram(prog)} style={{ fontSize:12, padding:"6px 12px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600 }}>✏️</button>
+                          <button onClick={()=>deleteProgram(prog.id)} style={{ fontSize:12, padding:"6px 12px", borderRadius:7, border:`1px solid ${T.red}30`, background:T.redLt, color:T.red, cursor:"pointer", fontWeight:600 }}>✕</button>
+                        </div>
                       </div>
-                      <div style={{ display:"flex", gap:8 }}>
-                        <button onClick={()=>setEditingProgram(prog)} style={{ fontSize:12, padding:"6px 12px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600 }}>✏️ Edit</button>
-                        <button onClick={()=>deleteProgram(prog.id)} style={{ fontSize:12, padding:"6px 12px", borderRadius:7, border:`1px solid ${T.red}30`, background:T.redLt, color:T.red, cursor:"pointer", fontWeight:600 }}>Delete</button>
-                      </div>
+                      {prog.target && <div style={{ fontSize:12, color:T.ink3 }}><span style={{ fontWeight:600, textTransform:"uppercase", letterSpacing:".06em", fontSize:10 }}>Target: </span>{prog.target}</div>}
                     </Card>
                   ))}
                 </div>
@@ -617,10 +590,7 @@ export default function IndependentRBT({ user, profile, onLogout }) {
                         style={{ cursor:"pointer", border:`${selected?"2px":"1px"} solid ${selected?T.green:T.border}`, background:selected?T.greenLt:T.white, transition:"all .15s" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
                           <div style={{ width:44, height:44, borderRadius:"50%", background:p.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#fff", flexShrink:0 }}>{p.initials}</div>
-                          <div>
-                            <div style={{ fontSize:14, fontWeight:700 }}>{p.name}</div>
-                            <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>Age {age(p.dob)}</div>
-                          </div>
+                          <div><div style={{ fontSize:14, fontWeight:700 }}>{p.name}</div><div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>Age {age(p.dob)}</div></div>
                         </div>
                         <div style={{ fontSize:12, color:T.ink3, marginBottom:10 }}>{p.diagnosis}</div>
                         <div style={{ fontSize:11, color:T.ink3, marginBottom:12 }}>{progs.length} programs</div>
@@ -635,10 +605,15 @@ export default function IndependentRBT({ user, profile, onLogout }) {
               )}
             </div>
           )}
+
+          {view==="dashboard" && (
+            <IndependentDashboard patient={patient} userId={user.id} />
+          )}
         </div>
 
+        {/* Session footer */}
         {view==="session" && patients.length>0 && (
-          <div style={{ padding:"14px 28px", borderTop:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", gap:14 }}>
+          <div style={{ padding:"14px 28px", borderTop:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>
             <div style={{ fontSize:26, fontWeight:800, fontVariantNumeric:"tabular-nums", letterSpacing:"-1px", color:sessionActive?T.green:T.ink3 }}>{fmtHMS(sessionSecs)}</div>
             <div style={{ fontSize:12, color:T.ink3, fontWeight:500 }}>{sessionActive?"Session in progress":"Session not started"}</div>
             <div style={{ flex:1 }}/>
@@ -647,6 +622,7 @@ export default function IndependentRBT({ user, profile, onLogout }) {
           </div>
         )}
 
+        {/* Mobile bottom nav */}
         {isMobile && (
           <div style={{ position:"fixed", bottom:0, left:0, right:0, background:T.navy, display:"flex", justifyContent:"space-around", padding:"8px 0 12px", zIndex:100, borderTop:"1px solid rgba(255,255,255,.1)" }}>
             {NAV.map(n=>(
@@ -663,6 +639,161 @@ export default function IndependentRBT({ user, profile, onLogout }) {
       <div style={{ position:"fixed", bottom:24, right:24, background:T.ink, color:"#fff", padding:"11px 20px", borderRadius:10, fontSize:13, fontWeight:600, opacity:toast?1:0, transform:toast?"translateY(0)":"translateY(8px)", transition:"all .2s", pointerEvents:"none", zIndex:9999 }}>
         {toast||"\u200b"}
       </div>
+    </div>
+  );
+}
+
+function IndependentDashboard({ patient, userId }) {
+  const [sessions, setSessions] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [dataPoints, setDataPoints] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!patient) return;
+    setLoading(true);
+    const load = async () => {
+      const { data: sessionData } = await supabase.from("sessions").select("*").eq("patient_id", patient.id).order("started_at", { ascending: true });
+      const { data: progData } = await supabase.from("programs").select("*").eq("patient_id", patient.id).eq("status", "active");
+      let dpData = [];
+      if (sessionData?.length) {
+        const ids = sessionData.map(s => s.id);
+        const { data: fetchedDp } = await supabase.from("data_points").select("*").in("session_id", ids).order("recorded_at", { ascending: true });
+        dpData = fetchedDp || [];
+      }
+      setSessions(sessionData || []);
+      setPrograms(progData || []);
+      setDataPoints(dpData);
+      setLoading(false);
+    };
+    load();
+  }, [patient]);
+
+  const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
+
+  const getSeriesForProgram = (prog) => {
+    return sessions.map(session => {
+      const pts = dataPoints.filter(d => d.session_id === session.id && d.program_id === prog.id);
+      if (!pts.length) return null;
+      let value;
+      if (prog.type === "frequency") value = pts.length;
+      else if (prog.type === "duration") value = pts.reduce((s,d) => s + (parseFloat(d.value)||0), 0);
+      else if (prog.type === "rate") { const yes = pts.filter(d=>d.value==1).length; value = pts.length > 0 ? Math.round((yes/pts.length)*100) : null; }
+      else if (prog.type === "latency") value = Math.round(pts.reduce((s,d)=>s+(parseFloat(d.value)||0),0)/pts.length);
+      return value !== null ? { date: new Date(session.started_at).toLocaleDateString("en-US",{month:"numeric",day:"numeric"}), value } : null;
+    }).filter(Boolean);
+  };
+
+  if (!patient) return (
+    <Card style={{ textAlign:"center", padding:60 }}>
+      <div style={{ fontSize:40, marginBottom:12 }}>👤</div>
+      <div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>No patient selected</div>
+      <div style={{ fontSize:13, color:T.ink3, marginTop:6 }}>Select a patient from the Patients view</div>
+    </Card>
+  );
+
+  if (loading) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading analytics…</div>;
+
+  if (!sessions.length) return (
+    <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
+      <div style={{ fontSize:40, marginBottom:12 }}>📊</div>
+      <div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>No sessions yet</div>
+      <div style={{ fontSize:13, marginTop:6 }}>Start recording sessions to see analytics here</div>
+    </div>
+  );
+
+  const documented = sessions.filter(s=>s.documentation_status==="documented").length;
+  const avgDuration = sessions.length ? Math.round(sessions.reduce((a,s)=>a+(s.duration_secs||0),0)/sessions.length) : 0;
+  const lastSession = sessions[sessions.length-1];
+
+  const metrics = [
+    { label:"Total sessions", value:sessions.length, color:T.navy },
+    { label:"Documented", value:`${documented}/${sessions.length}`, color:T.green },
+    { label:"Avg duration", value:fmtHMS(avgDuration), color:T.amber },
+    { label:"Last session", value:lastSession ? new Date(lastSession.started_at).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "—", color:T.navy },
+  ];
+
+  const SparkLine = ({ data, color, targetVal }) => {
+    if (!data.length) return <div style={{ fontSize:12, color:T.ink3 }}>No data yet</div>;
+    const W = 280, H = 80, pad = 10;
+    const vals = data.map(d=>d.value);
+    const max = Math.max(...vals, targetVal||0) * 1.2 || 1;
+    const xStep = (W - pad*2) / Math.max(vals.length-1, 1);
+    const yScale = (v) => H - pad - (v/max) * (H-pad*2);
+    const points = vals.map((v,i)=>({ x: pad+i*xStep, y: yScale(v) }));
+    const pathD = points.map((p,i)=>i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`).join(" ");
+    const areaD = `${pathD} L${points[points.length-1].x},${H-pad} L${pad},${H-pad} Z`;
+    const targetY = targetVal ? yScale(targetVal) : null;
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", height:80 }}>
+        <defs>
+          <linearGradient id={`g${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.2"/>
+            <stop offset="100%" stopColor={color} stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d={areaD} fill={`url(#g${color.replace("#","")})`}/>
+        <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        {targetY && <line x1={pad} y1={targetY} x2={W-pad} y2={targetY} stroke={T.red} strokeWidth="1.5" strokeDasharray="4,3" opacity=".6"/>}
+        {points.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r="3" fill={color}/>)}
+        {data.map((d,i)=><text key={i} x={pad+i*xStep} y={H-1} textAnchor="middle" fontSize="8" fill={T.ink3}>{d.date}</text>)}
+      </svg>
+    );
+  };
+
+  return (
+    <div>
+      <Card style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20, padding:"16px 20px" }}>
+        <div style={{ width:52, height:52, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
+        <div>
+          <div style={{ fontSize:18, fontWeight:700 }}>{patient.name}</div>
+          <div style={{ fontSize:13, color:T.ink3, marginTop:2 }}>{patient.diagnosis}</div>
+        </div>
+      </Card>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(140px,100%),1fr))", gap:12, marginBottom:20 }}>
+        {metrics.map((m,i)=>(
+          <Card key={i} style={{ padding:"16px 20px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>{m.label}</div>
+            <div style={{ fontSize:28, fontWeight:800, color:m.color, letterSpacing:"-1px" }}>{m.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(280px,100%),1fr))", gap:14, marginBottom:20 }}>
+        {programs.map(prog => {
+          const series = getSeriesForProgram(prog);
+          const ti = typeInfo[prog.type] || { color:T.ink3, bg:T.bg2, label:prog.type };
+          return (
+            <Card key={prog.id}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                <div style={{ fontSize:14, fontWeight:700 }}>{prog.name}</div>
+                <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:ti.bg, color:ti.color }}>{ti.label}</span>
+              </div>
+              {prog.target && <div style={{ fontSize:11, color:T.ink3, marginBottom:8 }}>Target: {prog.target}</div>}
+              <SparkLine data={series} color={ti.color} targetVal={prog.target_val} />
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>Session history</div>
+        {sessions.slice().reverse().slice(0,8).map((s,i,arr)=>(
+          <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none" }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
+              <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:13, fontWeight:600 }}>{fmtHMS(s.duration_secs)}</div>
+              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </Card>
     </div>
   );
 }
