@@ -516,10 +516,15 @@ export default function IndependentRBT({ user, profile, onLogout }) {
                   )}
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(360px,100%),1fr))", gap:14 }}>
                     {patientPrograms.map(prog=>
-                      prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-                      prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-                      prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> : null
-                    )}
+prog.type==="frequency"            ? <FrequencyCard        key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+prog.type==="duration"             ? <DurationCard         key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+prog.type==="rate"                 ? <RateCard             key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
+(prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling")
+                                   ? <IntervalCard         key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+prog.type==="abc_data"             ? <ABCCard              key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+prog.type==="scatterplot"          ? <ScatterplotCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+prog.type==="permanent_product"    ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+null                    )}
                   </div>
                 </div>
               )}
