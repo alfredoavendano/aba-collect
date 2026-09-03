@@ -315,24 +315,33 @@ export default function IndependentRBT({ user, profile, onLogout }) {
     showToast("Program deleted"); loadData();
   };
 
-  const startSession = () => {
-    setSessionActive(true); setSessionSecs(0);
-    timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);
-    showToast("Session started");
-  };
+const [currentSession, setCurrentSession] = useState(null);
 
-  const endSession = async () => {
-    setSessionActive(false); clearInterval(timerRef.current);
-    let saved=null;
-    if(selectedPatientId) {
-      const { data } = await supabase.from("sessions").insert({
-        patient_id:selectedPatientId, rbt_name:profile?.full_name||"RBT",
-        ended_at:new Date().toISOString(), duration_secs:sessionSecs, documentation_status:"pending"
-      }).select().single();
-      saved=data;
-    }
-    setCompletedSession(saved); setShowSessionNote(true); loadPendingSessions();
-  };
+const startSession = async () => {
+  const { data } = await supabase.from("sessions").insert({
+    patient_id: selectedPatientId,
+    rbt_name: profile?.full_name||"Independent RBT",
+    started_at: new Date().toISOString(),
+    documentation_status: "pending"
+  }).select().single();
+  setCurrentSession(data);
+  setSessionActive(true); setSessionSecs(0);
+  timerRef.current=setInterval(()=>setSessionSecs(s=>s+1),1000);
+  showToast("Session started");
+};
+
+const endSession = async () => {
+  setSessionActive(false); clearInterval(timerRef.current);
+  let saved = currentSession;
+  if(saved) {
+    await supabase.from("sessions").update({
+      ended_at: new Date().toISOString(),
+      duration_secs: sessionSecs,
+    }).eq("id", saved.id);
+  }
+  setCompletedSession(saved); setShowSessionNote(true); loadPendingSessions();
+  setCurrentSession(null);
+};
 
   useEffect(()=>()=>clearInterval(timerRef.current),[]);
 
@@ -521,14 +530,13 @@ export default function IndependentRBT({ user, profile, onLogout }) {
                   )}
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(360px,100%),1fr))", gap:14 }}>
                     {patientPrograms.map(prog=>
-prog.type==="frequency"            ? <FrequencyCard        key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-prog.type==="duration"             ? <DurationCard         key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-prog.type==="rate"                 ? <RateCard             key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast}/> :
-(prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling")
-                                   ? <IntervalCard         key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
-prog.type==="abc_data"             ? <ABCCard              key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
-prog.type==="scatterplot"          ? <ScatterplotCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
-prog.type==="permanent_product"    ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={null} userId={user.id}/> :
+prog.type==="frequency" ? <FrequencyCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={currentSession} userId={user.id}/> :
+prog.type==="duration"  ? <DurationCard  key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={currentSession} userId={user.id}/> :
+prog.type==="rate"      ? <RateCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={currentSession} userId={user.id}/> :(prog.type==="partial_interval"||prog.type==="whole_interval"||prog.type==="momentary_time_sampling")
+                                   ? <IntervalCard         key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={currentSession} userId={user.id}/> :
+prog.type==="abc_data"             ? <ABCCard              key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={currentSession} userId={user.id}/> :
+prog.type==="scatterplot"          ? <ScatterplotCard      key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={currentSession} userId={user.id}/> :
+prog.type==="permanent_product"    ? <PermanentProductCard key={prog.id} prog={prog} sessionActive={sessionActive} onRecord={showToast} session={currentSession} userId={user.id}/> :
 null                    )}
                   </div>
                 </div>
@@ -616,9 +624,8 @@ null                    )}
         </div>
 
         {/* Session footer */}
-        {view==="session" && patients.length>0 && (
-          <div style={{ padding:"14px 28px", borderTop:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>
-            <div style={{ fontSize:26, fontWeight:800, fontVariantNumeric:"tabular-nums", letterSpacing:"-1px", color:sessionActive?T.green:T.ink3 }}>{fmtHMS(sessionSecs)}</div>
+ {view==="session" && patients.length>0 && (
+  <div style={{ padding:"14px 28px", paddingBottom: isMobile ? "80px" : "14px", borderTop:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>           <div style={{ fontSize:26, fontWeight:800, fontVariantNumeric:"tabular-nums", letterSpacing:"-1px", color:sessionActive?T.green:T.ink3 }}>{fmtHMS(sessionSecs)}</div>
             <div style={{ fontSize:12, color:T.ink3, fontWeight:500 }}>{sessionActive?"Session in progress":"Session not started"}</div>
             <div style={{ flex:1 }}/>
             {sessionActive && <Btn onClick={endSession} variant="danger">⏹ End session</Btn>}
