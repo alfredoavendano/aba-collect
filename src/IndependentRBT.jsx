@@ -615,6 +615,16 @@ export default function IndependentRBT({ user, profile, onLogout }) {
 
   useEffect(()=>()=>clearInterval(timerRef.current),[]);
 
+  const handleNoteComplete = async () => {
+    if(completedSession) {
+      await supabase.from("sessions").update({ documentation_status:"documented" }).eq("id", completedSession.id);
+    }
+    setShowSessionNote(false);
+    setCompletedSession(null);
+    loadPendingSessions();
+    showToast("Note saved ✓");
+  };
+  
   const patient = patients.find(p=>p.id===selectedPatientId);
   const patientPrograms = programsByPatient[selectedPatientId]||[];
 
