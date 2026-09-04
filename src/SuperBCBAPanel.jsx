@@ -463,9 +463,11 @@ function SessionsTab({ sessions, patients, fmtHMS }) {
   const [viewingNote, setViewingNote] = useState(null);
 
   const loadNote = async (session) => {
-    const { data } = await supabase.from("session_notes").select("*, note_responses(*)").eq("session_id", session.id).single();
-    setViewingNote({ session, note: data });
-  };
+  const { data } = await supabase.from("session_notes")
+    .select("*, note_responses(*, note_sections(title))")
+    .eq("session_id", session.id).single();
+  setViewingNote({ session, note: data });
+};
 
   return (
     <div>
@@ -518,7 +520,7 @@ function SessionsTab({ sessions, patients, fmtHMS }) {
               <div>
                 {viewingNote.note.note_responses?.map((r,i)=>(
                   <div key={i} style={{ marginBottom:16 }}>
-<div style={{ fontSize:12, fontWeight:700, color:T.navy, marginBottom:6, textTransform:"uppercase", letterSpacing:".06em" }}>{r.section_title||r.section_id}</div>
+<div style={{ fontSize:12, fontWeight:700, color:T.navy, marginBottom:6, textTransform:"uppercase", letterSpacing:".06em" }}>{{r.note_sections?.title||r.section_id}}</div>
                     <div style={{ fontSize:13, color:T.ink2, lineHeight:1.6, background:T.bg2, padding:"10px 14px", borderRadius:8 }}>{r.response||"—"}</div>
                   </div>
                 ))}
