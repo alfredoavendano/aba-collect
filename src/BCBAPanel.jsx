@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import TemplateManager from "./TemplateManager";
 import { generateSessionReport } from "./ReportGenerator";
+import SessionNoteViewer from "./SessionNoteViewer";
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -644,6 +645,7 @@ function RBTsTab({ rbts, patients, getPatientsForRBT }) {
 
 // ─── Sessions Tab ─────────────────────────────────────────────────────────────
 function SessionsTab({ userId, patients }) {
+  const [viewingNote, setViewingNote] = useState(null);
   const downloadSessionPDF = async (session, patients) => {
   const patient = patients.find(p => p.id === session.patient_id);
   const [progsData, dpData, noteData] = await Promise.all([
@@ -682,7 +684,17 @@ function SessionsTab({ userId, patients }) {
       <div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>No sessions yet</div>
     </div>
   );
-  return (
+return (
+  <div>
+    {viewingNote && (
+      <SessionNoteViewer
+        session={viewingNote.session}
+        patient={patients.find(p=>p.id===viewingNote.session.patient_id)}
+        mode="comment"
+        userId={userId}
+        onClose={()=>setViewingNote(null)}
+      />
+    )}
     <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
       {sessions.map((s,i)=>{
         const patient = patients.find(p=>p.id===s.patient_id);
@@ -706,11 +718,18 @@ function SessionsTab({ userId, patients }) {
                   ⬇ PDF
                 </button>
               )}
+              {s.documentation_status==="documented" && (
+                <button onClick={()=>setViewingNote({ session:s })}
+                  style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                  📄 View & comment
+                </button>
+              )}
             </div>
           </div>
         );
-      })}
+           })}
     </div>
+  </div>
   );
 }
 
