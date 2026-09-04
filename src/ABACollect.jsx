@@ -1226,7 +1226,9 @@ const endSession = async () => {
         </div>
         <SessionNote session={completedSession} patient={patient} programs={patientPrograms} user={user}
           onComplete={async()=>{
-            if(completedSession){ await supabase.from('sessions').update({documentation_status:'documented'}).eq('id',completedSession.id); }
+            if(completedSession){ 
+              const {error} = await supabase.from('sessions').update({documentation_status:'documented'}).eq('id',completedSession.id); 
+            }
             setShowSessionNote(false); setCompletedSession(null); loadPendingSessions(); showToast("Note saved ✓");
           }}
           onSkip={()=>{ setShowSessionNote(false); setCompletedSession(null); showToast("Session ended · Note skipped"); }}
