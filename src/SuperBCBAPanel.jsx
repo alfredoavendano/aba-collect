@@ -245,6 +245,7 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
 }
 
 function OverviewTab({ patients, bcbas, rbts, sessions, fmtHMS }) {
+  const [viewingNote, setViewingNote] = useState(null);
   const thisWeek = sessions.filter(s=>(Date.now()-new Date(s.started_at))/(1000*3600*24)<=7);
   const metrics = [
     { label:"Total patients",     value:patients.length, color:T.navy  },
@@ -254,6 +255,14 @@ function OverviewTab({ patients, bcbas, rbts, sessions, fmtHMS }) {
   ];
   return (
     <div>
+      {viewingNote && (
+        <SessionNoteViewer
+          session={viewingNote.session}
+          patient={patients.find(p=>p.id===viewingNote.session.patient_id)}
+          mode="view"
+          onClose={()=>setViewingNote(null)}
+        />
+      )}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12, marginBottom:20 }}>
         {metrics.map((m,i)=>(
           <Card key={i} style={{ padding:"16px 20px" }}>
@@ -302,11 +311,17 @@ function OverviewTab({ patients, bcbas, rbts, sessions, fmtHMS }) {
                   <div style={{ fontSize:11, color:T.ink3 }}>{new Date(s.started_at).toLocaleDateString()}</div>
                 </div>
               </div>
-              <div style={{ textAlign:"right" }}>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
                 <div style={{ fontSize:13, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
                 <span style={{ fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
                   {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
                 </span>
+                {s.documentation_status==="documented" && (
+                  <button onClick={()=>setViewingNote({ session:s })}
+                    style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                    📄 View note
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -479,18 +494,18 @@ function SessionsTab({ sessions, patients, fmtHMS }) {
                 <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
                 <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleDateString()} · {s.rbt_name&&`RBT: ${s.rbt_name}`}</div>
               </div>
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
-                <div style={{ fontSize:14, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
-                <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
-                  {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
-                </span>
-                {s.documentation_status==="documented" && (
-                  <button onClick={()=>loadNote(s)}
-                    style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
-                    📄 View note
-                  </button>
-                )}
-              </div>
+              <div style={{ textAlign:"right", display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+              <div style={{ fontSize:13, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
+              <span style={{ fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+              </span>
+              {s.documentation_status==="documented" && (
+                <button onClick={()=>setViewingNote({ session: s })}
+                  style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                  📄 View note
+                </button>
+              )}
+            </div>
             </div>
           );
         })}
