@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import SessionNoteViewer from "./SessionNoteViewer";
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -462,13 +463,6 @@ function RBTsTab({ rbts, assignments, patients }) {
 function SessionsTab({ sessions, patients, fmtHMS }) {
   const [viewingNote, setViewingNote] = useState(null);
 
-  const loadNote = async (session) => {
-  const { data } = await supabase.from("session_notes")
-    .select("*, note_responses(*, note_sections(title))")
-    .eq("session_id", session.id).single();
-  setViewingNote({ session, note: data });
-};
-
   return (
     <div>
       <div style={{ fontSize:13, color:T.ink3, marginBottom:14, fontWeight:500 }}>{sessions.length} recent sessions</div>
@@ -503,37 +497,12 @@ function SessionsTab({ sessions, patients, fmtHMS }) {
       </div>
 
       {viewingNote && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-          <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(560px, calc(100vw - 32px))", maxHeight:"80vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-              <div>
-                <div style={{ fontSize:18, fontWeight:800, color:T.ink }}>Session note</div>
-                <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>
-                  {patients.find(p=>p.id===viewingNote.session.patient_id)?.name} · {new Date(viewingNote.session.started_at).toLocaleDateString()}
-                </div>
-              </div>
-              <button onClick={()=>setViewingNote(null)} style={{ fontSize:20, background:"none", border:"none", cursor:"pointer", color:T.ink3 }}>✕</button>
-            </div>
-            {!viewingNote.note ? (
-              <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>No documentation found</div>
-            ) : (
-              <div>
-                {viewingNote.note.note_responses?.map((r,i)=>(
-                  <div key={i} style={{ marginBottom:16 }}>
-<div style={{ fontSize:12, fontWeight:700, color:T.navy, marginBottom:6, textTransform:"uppercase", letterSpacing:".06em" }}>{{r.note_sections?.title||r.section_id}}</div>
-                    <div style={{ fontSize:13, color:T.ink2, lineHeight:1.6, background:T.bg2, padding:"10px 14px", borderRadius:8 }}>{r.response||"—"}</div>
-                  </div>
-                ))}
-                {viewingNote.note.free_text && (
-                  <div style={{ marginBottom:16 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:T.navy, marginBottom:6, textTransform:"uppercase", letterSpacing:".06em" }}>Additional notes</div>
-                    <div style={{ fontSize:13, color:T.ink2, lineHeight:1.6, background:T.bg2, padding:"10px 14px", borderRadius:8 }}>{viewingNote.note.free_text}</div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <SessionNoteViewer
+          session={viewingNote.session}
+          patient={patients.find(p=>p.id===viewingNote.session.patient_id)}
+          mode="view"
+          onClose={()=>setViewingNote(null)}
+        />
       )}
     </div>
   );
