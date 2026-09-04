@@ -460,6 +460,13 @@ function RBTsTab({ rbts, assignments, patients }) {
 }
 
 function SessionsTab({ sessions, patients, fmtHMS }) {
+  const [viewingNote, setViewingNote] = useState(null);
+
+  const loadNote = async (session) => {
+    const { data } = await supabase.from("session_notes").select("*, note_responses(*)").eq("session_id", session.id).single();
+    setViewingNote({ session, note: data });
+  };
+
   return (
     <div>
       <div style={{ fontSize:13, color:T.ink3, marginBottom:14, fontWeight:500 }}>{sessions.length} recent sessions</div>
@@ -476,16 +483,56 @@ function SessionsTab({ sessions, patients, fmtHMS }) {
                 <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
                 <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleDateString()} · {s.rbt_name&&`RBT: ${s.rbt_name}`}</div>
               </div>
-              <div style={{ textAlign:"right" }}>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
                 <div style={{ fontSize:14, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
                 <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
                   {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
                 </span>
+                {s.documentation_status==="documented" && (
+                  <button onClick={()=>loadNote(s)}
+                    style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                    📄 View note
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {viewingNote && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+          <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(560px, calc(100vw - 32px))", maxHeight:"80vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <div>
+                <div style={{ fontSize:18, fontWeight:800, color:T.ink }}>Session note</div>
+                <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>
+                  {patients.find(p=>p.id===viewingNote.session.patient_id)?.name} · {new Date(viewingNote.session.started_at).toLocaleDateString()}
+                </div>
+              </div>
+              <button onClick={()=>setViewingNote(null)} style={{ fontSize:20, background:"none", border:"none", cursor:"pointer", color:T.ink3 }}>✕</button>
+            </div>
+            {!viewingNote.note ? (
+              <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>No documentation found</div>
+            ) : (
+              <div>
+                {viewingNote.note.note_responses?.map((r,i)=>(
+                  <div key={i} style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:T.navy, marginBottom:6, textTransform:"uppercase", letterSpacing:".06em" }}>{r.section_id}</div>
+                    <div style={{ fontSize:13, color:T.ink2, lineHeight:1.6, background:T.bg2, padding:"10px 14px", borderRadius:8 }}>{r.response||"—"}</div>
+                  </div>
+                ))}
+                {viewingNote.note.free_text && (
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:T.navy, marginBottom:6, textTransform:"uppercase", letterSpacing:".06em" }}>Additional notes</div>
+                    <div style={{ fontSize:13, color:T.ink2, lineHeight:1.6, background:T.bg2, padding:"10px 14px", borderRadius:8 }}>{viewingNote.note.free_text}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
