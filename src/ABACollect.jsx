@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from './supabase';
 import SessionNote from './SessionNote';
+import SessionNoteViewer from "./SessionNoteViewer";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -889,6 +890,7 @@ function DashboardView({ patient }) {
   const [dataPoints, setDataPoints] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewingNote, setViewingNote] = useState(null);
 
   useEffect(() => {
     if (!patient) return;
@@ -911,21 +913,21 @@ function DashboardView({ patient }) {
       .eq('status', 'active');
 
     let dpData = [];
-if (sessionData?.length) {
-  const ids = sessionData.map(s => s.id);
-  const { data: fetchedDp } = await supabase
-    .from('data_points')
-    .select('*')
-    .in('session_id', ids)
-    .order('recorded_at', { ascending: true });
-  dpData = fetchedDp || [];
-}
+  if (sessionData?.length) {
+    const ids = sessionData.map(s => s.id);
+    const { data: fetchedDp } = await supabase
+      .from('data_points')
+      .select('*')
+      .in('session_id', ids)
+      .order('recorded_at', { ascending: true });
+    dpData = fetchedDp || [];
+  }
 
-console.log("Sessions:", sessionData?.length, "Programs:", progData?.length, "DataPoints:", dpData.length);
-setSessions(sessionData || []);
-setPrograms(progData || []);
-setDataPoints(dpData);
-setLoading(false);
+  console.log("Sessions:", sessionData?.length, "Programs:", progData?.length, "DataPoints:", dpData.length);
+  setSessions(sessionData || []);
+  setPrograms(progData || []);
+  setDataPoints(dpData);
+  setLoading(false);
   };
 
   if (loading) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading analytics…</div>;
@@ -969,8 +971,18 @@ setLoading(false);
     { label:"Last session",       value:lastSession ? new Date(lastSession.started_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : "—", color:T.navy },
   ];
 
-  return (
+    return (
     <div>
+      {viewingNote && (
+        <SessionNoteViewer
+          session={viewingNote}
+          patient={patient}
+          mode="edit"
+          userId={patient.rbt_id}
+          onClose={()=>setViewingNote(null)}
+        />
+      )}
+
       {/* Patient header */}
       <Card style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20, padding:"16px 20px" }}>
         <div style={{ width:52, height:52, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
@@ -1020,11 +1032,17 @@ setLoading(false);
               <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
               <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>{s.rbt_name} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
             </div>
-            <div style={{ textAlign:"right" }}>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
               <div style={{ fontSize:13, fontWeight:600 }}>{fmtHMS(s.duration_secs)}</div>
               <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
                 {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
               </span>
+              {s.documentation_status==="documented" && (
+                <button onClick={()=>setViewingNote(s)}
+                  style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                  ✏️ Edit note
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -1482,11 +1500,17 @@ const endSession = async () => {
               <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
               <div style={{ fontSize:11, color:T.ink3 }}>{s.rbt_name} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
             </div>
-            <div style={{ textAlign:"right" }}>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
               <div style={{ fontSize:13, fontWeight:600 }}>{fmtHMS(s.duration_secs)}</div>
               <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
                 {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
               </span>
+              {s.documentation_status==="documented" && (
+                <button onClick={()=>setViewingNote(s)}
+                  style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                  ✏️ Edit note
+                </button>
+              )}
             </div>
           </div>
         ))}
