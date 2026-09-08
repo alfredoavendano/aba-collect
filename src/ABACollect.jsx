@@ -1432,6 +1432,7 @@ const endSession = async () => {
   const [sessions, setSessions] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewingNote, setViewingNote] = useState(null);
 
   useEffect(() => {
     if (!patient) return;
@@ -1454,6 +1455,16 @@ const endSession = async () => {
 
   return (
     <div>
+      return (
+  <div>
+    {viewingNote && (
+      <SessionNoteViewer
+        session={viewingNote}
+        patient={patient}
+        mode="view"
+        onClose={()=>setViewingNote(null)}
+      />
+    )}
       <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:44, height:44, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
