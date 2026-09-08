@@ -106,13 +106,14 @@ export default function BCBAPanel({ user, profile, onLogout }) {
   const getRBTsForPatient = (pid) => assignments.filter(a=>a.patient_id===pid).map(a=>a.rbt_id);
   const getPatientsForRBT = (rid) => assignments.filter(a=>a.rbt_id===rid).map(a=>a.patient_id);
 
-  const NAV = [
-    {id:"patients",  label:"My patients",    icon:"👤"},
-    {id:"programs",  label:"Programs",       icon:"🔬"},
-    {id:"rbts",      label:"My RBTs",        icon:"👥"},
-    {id:"templates", label:"Templates",      icon:"📝"},
-    {id:"sessions",  label:"Recent sessions",icon:"📋"},
-  ];
+const NAV = [
+  {id:"patients",  label:"My patients",    icon:"👤"},
+  {id:"programs",  label:"Programs",       icon:"🔬"},
+  {id:"rbts",      label:"My RBTs",        icon:"👥"},
+  {id:"templates", label:"Templates",      icon:"📝"},
+  {id:"sessions",  label:"Recent sessions",icon:"📋"},
+  {id:"dashboard", label:"Patient dashboard", icon:"📊"},
+];
 
   return (
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Inter',system-ui,sans-serif", background:T.bg }}>
@@ -160,7 +161,7 @@ export default function BCBAPanel({ user, profile, onLogout }) {
 
         {!isMobile && (
           <button onClick={()=>setSidebarCollapsed(c=>!c)}
-            style={{ position:"fixed", left: sidebarCollapsed ? 44 : 220, top:"50%", transform:"translateY(-50%)", width:20, height:36, borderRadius:"0 6px 6px 0", background:T.navy, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.6)", fontSize:12, zIndex:10, transition:"left .25s" }}>
+            style={{ position:"fixed", left: sidebarCollapsed ? 44 : 220, top:"50%", transform:"translateY(-50%)", width:20, height:36, borderRadius:"0 6px 6px 0", background:T.navy, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.6)", fontSize:12, zIndex:5, transition:"left .25s" }}>
             {sidebarCollapsed ? "›" : "‹"}
           </button>
         )}
@@ -198,7 +199,7 @@ export default function BCBAPanel({ user, profile, onLogout }) {
           ) : tab==="templates" ? (
             <TemplateManager user={user} patients={patients} showToast={showToast} />
           ) : tab==="dashboard" ? (
-            <BCBADashboardView patient={dashboardPatient} onBack={()=>setTab("patients")} />
+            <BCBADashboardView patient={dashboardPatient} onBack={()=>{ console.log("onBack called"); setTab("patients"); }} />
           ) : (
             <SessionsTab userId={user.id} patients={patients} />
           )}
@@ -844,7 +845,6 @@ function BCBADashboardView({ patient, onBack }) {
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-        <button onClick={onBack} style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>← Back</button>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:44, height:44, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
           <div>

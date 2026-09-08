@@ -1437,7 +1437,6 @@ const endSession = async () => {
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-        <button onClick={onBack} style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>← Back</button>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:44, height:44, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
           <div>
