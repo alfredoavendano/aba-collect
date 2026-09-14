@@ -1404,7 +1404,7 @@ const endSession = async () => {
         {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:28}}>
           {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id}/>}          {view==="programs"&&<ProgramsView programs={patientPrograms} profile={profile}/>}
-          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<BCBADashboardView patient={patient}/>}
+          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient}/>}
           {view==="reports"&&<ReportsView patient={patient}/>}
         </div>
 
