@@ -904,6 +904,7 @@ function DashboardView({ patient }) {
       .from('sessions')
       .select('*')
       .eq('patient_id', patient.id)
+      .is('deleted_at', null)
       .order('started_at', { ascending: true });
 
     const { data: progData } = await supabase
@@ -963,6 +964,11 @@ function DashboardView({ patient }) {
   const documented = sessions.filter(s=>s.documentation_status==='documented').length;
   const avgDuration = sessions.length ? Math.round(sessions.reduce((s,d)=>s+(d.duration_secs||0),0)/sessions.length) : 0;
   const lastSession = sessions[sessions.length-1];
+  const deleteSession = async (id) => {
+    if(!window.confirm("Delete this session? It can be recovered later by your BCBA.")) return;
+    await supabase.from("sessions").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    loadDashboard();
+  };
 
   const metrics = [
     { label:"Total sessions",     value:totalSessions, color:T.navy  },
@@ -1038,10 +1044,16 @@ function DashboardView({ patient }) {
                 {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
               </span>
               {s.documentation_status==="documented" && (
-                <button onClick={()=>setViewingNote(s)}
-                  style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
-                  ✏️ Edit note
-                </button>
+                <div style={{ display:"flex", gap:6 }}>
+                  <button onClick={()=>setViewingNote(s)}
+                    style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                    ✏️ Edit note
+                  </button>
+                  <button onClick={()=>deleteSession(s.id)}
+                    style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.red}30`, background:T.redLt, cursor:"pointer", fontWeight:600, color:T.red }}>
+                    🗑️ Delete
+                  </button>
+                </div>
               )}
             </div>
           </div>
