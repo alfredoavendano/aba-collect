@@ -1460,7 +1460,7 @@ const endSession = async () => {
         <SessionNoteViewer
           session={viewingNote}
           patient={patient}
-          mode="view"
+          mode="edit"
           onClose={()=>setViewingNote(null)}
         />
       )}
