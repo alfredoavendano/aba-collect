@@ -885,7 +885,7 @@ function ChartCard({ title, color, data, labels, targetVal, targetLabel, suffix=
 }
 
 // ─── Dashboard view ───────────────────────────────────────────────────────────
-function DashboardView({ patient }) {
+function DashboardView({ patient, onDocument }) {
   const [sessions, setSessions] = useState([]);
   const [dataPoints, setDataPoints] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -1046,7 +1046,7 @@ function DashboardView({ patient }) {
               </div>
               <div style={{ display:"flex", gap:8, marginTop:12 }}>
                 {s.documentation_status==="pending" && (
-                  <button onClick={()=>{ setCompletedSession(s); setShowSessionNote(true); }}
+                  <button onClick={()=>onDocument && onDocument(s)}
                     style={{ flex:1, padding:"8px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
                     📝 Document
                   </button>
@@ -1404,7 +1404,7 @@ const endSession = async () => {
         {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:28}}>
           {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id}/>}          {view==="programs"&&<ProgramsView programs={patientPrograms} profile={profile}/>}
-          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient}/>}
+          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
           {view==="reports"&&<ReportsView patient={patient}/>}
         </div>
 
