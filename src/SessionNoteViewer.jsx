@@ -21,7 +21,8 @@ function Card({ children, style={} }) {
 export default function SessionNoteViewer({ session, patient, onClose, mode="view", userId }) {
   const [note, setNote] = useState(null);
   const [sections, setSections] = useState([]);
-  const [responses, setResponses] = useState({});
+  const [editedResponses, setEditedResponses] = useState({});
+  const [editedFreeText, setEditedFreeText] = useState("");
   const [dataPoints, setDataPoints] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [bcbaComment, setBcbaComment] = useState("");
@@ -33,29 +34,28 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
   const loadAll = async () => {
     setLoading(true);
 
-    // Load programs
     const { data: progsData } = await supabase.from("programs").select("*").eq("patient_id", patient.id).eq("status","active");
     setPrograms(progsData||[]);
 
-    // Load data points
     const { data: dpData } = await supabase.from("data_points").select("*").eq("session_id", session.id).order("recorded_at");
     setDataPoints(dpData||[]);
 
-    // Load note with sections
     const { data: noteData } = await supabase.from("session_notes")
       .select("*, note_responses(*, note_sections(title, order_index))")
       .eq("session_id", session.id).single();
 
     if(noteData) {
       setNote(noteData);
-      const resp = {};
-      (noteData.note_responses||[]).forEach(r => { resp[r.note_sections?.title||r.section_id] = r.response; });
-      setResponses(resp);
+      setEditedFreeText(noteData.free_text||"");
       setBcbaComment(noteData.bcba_comment||"");
 
-      // Sort sections by order_index
       const sorted = (noteData.note_responses||[]).sort((a,b) => (a.note_sections?.order_index||0) - (b.note_sections?.order_index||0));
-      setSections(sorted.map(r => ({ id: r.section_id, title: r.note_sections?.title||r.section_id, response: r.response })));
+      const secs = sorted.map(r => ({ id:r.section_id, noteResponseId:r.id, title:r.note_sections?.title||r.section_id, response:r.response }));
+      setSections(secs);
+
+      const resp = {};
+      secs.forEach(s => { resp[s.id] = s.response||""; });
+      setEditedResponses(resp);
     }
     setLoading(false);
   };
@@ -68,8 +68,27 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
     onClose();
   };
 
+  const saveEdits = async () => {
+    if(!note) return;
+    setSaving(true);
+
+    // Update free text
+    await supabase.from("session_notes").update({ free_text: editedFreeText }).eq("id", note.id);
+
+    // Update each response
+    for(const sec of sections) {
+      const newText = editedResponses[sec.id]||"";
+      if(sec.noteResponseId) {
+        await supabase.from("note_responses").update({ response: newText }).eq("id", sec.noteResponseId);
+      }
+    }
+
+    setSaving(false);
+    onClose();
+  };
+
   const getSummary = (prog, pts) => {
-    if(!pts.length) return { text:"No data", color:T.ink3 };
+    if(!pts.length) return { text:"No data", color:T.ink3, bg:T.bg2 };
     const typeColors = {
       frequency:{ color:T.red, bg:T.redLt },
       duration:{ color:T.amber, bg:T.amberLt },
@@ -84,7 +103,7 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
     const tc = typeColors[prog.type]||{ color:T.ink3, bg:T.bg2 };
     let text = "";
     switch(prog.type) {
-      case "frequency": text = `${pts.length} occurrences`; break;
+      case "frequency": text=`${pts.length} occurrences`; break;
       case "duration": { const t=pts.reduce((a,b)=>a+(parseFloat(b.value)||0),0); text=`${Math.floor(t/60)}m ${Math.round(t%60)}s`; break; }
       case "rate": { const y=pts.filter(d=>d.value==1).length; text=`${Math.round((y/pts.length)*100)}% (${y}/${pts.length})`; break; }
       case "partial_interval": case "whole_interval": case "momentary_time_sampling": { const o=pts.filter(d=>d.occurred).length; text=`${Math.round((o/pts.length)*100)}% (${o}/${pts.length} intervals)`; break; }
@@ -100,14 +119,19 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
     </div>
   );
 
+  const isEdit = mode === "edit";
+  const isComment = mode === "comment";
+
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
       <div style={{ background:T.bg, borderRadius:16, width:"min(680px, calc(100vw - 32px))", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 20px 60px rgba(0,0,0,.25)" }}>
-        
+
         {/* Header */}
         <div style={{ padding:"20px 28px", borderBottom:`1px solid ${T.border}`, background:T.white, borderRadius:"16px 16px 0 0", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div>
-            <div style={{ fontSize:18, fontWeight:800, color:T.ink }}>Session note</div>
+            <div style={{ fontSize:18, fontWeight:800, color:T.ink }}>
+              {isEdit ? "Edit session note" : "Session note"}
+            </div>
             <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>
               {patient.name} · {new Date(session.started_at).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
               {session.rbt_name && ` · RBT: ${session.rbt_name}`}
@@ -155,41 +179,70 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
             </Card>
           )}
 
-          {/* Note sections — read only */}
+          {/* Note sections */}
           {sections.length > 0 && (
             <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:16 }}>
               {sections.map((s,i)=>(
-                <Card key={s.id} style={{ padding:"14px 18px", border:`1px solid ${T.greenMd}40` }}>
+                <Card key={s.id} style={{ padding:"14px 18px", border:`1px solid ${isEdit?(editedResponses[s.id]?T.greenMd+"40":T.border2):T.greenMd+"40"}` }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-                    <div style={{ width:26, height:26, borderRadius:"50%", background:T.green, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>✓</div>
+                    <div style={{ width:26, height:26, borderRadius:"50%", background:isEdit?(editedResponses[s.id]?T.green:T.navyLt):T.green, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:isEdit?(editedResponses[s.id]?"#fff":T.navy):"#fff", flexShrink:0 }}>
+                      {isEdit?(editedResponses[s.id]?"✓":i+1):"✓"}
+                    </div>
                     <div style={{ fontSize:14, fontWeight:700, color:T.ink }}>{s.title}</div>
                   </div>
-                  <div style={{ fontSize:13, color:T.ink2, lineHeight:1.7, background:T.bg2, padding:"12px 14px", borderRadius:8, whiteSpace:"pre-wrap", minHeight:60 }}>
-                    {s.response||"—"}
-                  </div>
+                  {isEdit ? (
+                    <>
+                      <textarea
+                        value={editedResponses[s.id]||""}
+                        onChange={e=>setEditedResponses(r=>({...r,[s.id]:e.target.value}))}
+                        rows={4}
+                        style={{ width:"100%", border:`1px solid ${editedResponses[s.id]?T.greenMd+"40":T.border2}`, borderRadius:8, padding:"10px 14px", fontSize:13, fontFamily:"inherit", color:T.ink, background:T.bg, resize:"vertical", outline:"none", lineHeight:1.6 }}
+                      />
+                      <div style={{ fontSize:11, color:T.ink3, marginTop:4, textAlign:"right" }}>{editedResponses[s.id]?.length||0} characters</div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize:13, color:T.ink2, lineHeight:1.7, background:T.bg2, padding:"12px 14px", borderRadius:8, whiteSpace:"pre-wrap", minHeight:60 }}>
+                      {s.response||"—"}
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
           )}
 
           {/* Free text */}
-          {note?.free_text && (
-            <Card style={{ marginBottom:16, padding:"14px 18px" }}>
-              <div style={{ fontSize:14, fontWeight:700, marginBottom:10 }}>Additional notes</div>
-              <div style={{ fontSize:13, color:T.ink2, lineHeight:1.7, background:T.bg2, padding:"12px 14px", borderRadius:8, whiteSpace:"pre-wrap" }}>
-                {note.free_text}
-              </div>
-            </Card>
-          )}
+          <Card style={{ marginBottom:16, padding:"14px 18px" }}>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:10 }}>
+              Additional notes
+              {!isEdit && <span style={{ fontSize:12, fontWeight:400, color:T.ink3, marginLeft:8 }}>optional</span>}
+            </div>
+            {isEdit ? (
+              <textarea
+                value={editedFreeText}
+                onChange={e=>setEditedFreeText(e.target.value)}
+                rows={3}
+                placeholder="Free-form observations, context, follow-up items…"
+                style={{ width:"100%", border:`1px solid ${T.border2}`, borderRadius:8, padding:"10px 14px", fontSize:13, fontFamily:"inherit", color:T.ink, background:T.bg, resize:"vertical", outline:"none", lineHeight:1.6 }}
+              />
+            ) : (
+              note?.free_text ? (
+                <div style={{ fontSize:13, color:T.ink2, lineHeight:1.7, background:T.bg2, padding:"12px 14px", borderRadius:8, whiteSpace:"pre-wrap" }}>
+                  {note.free_text}
+                </div>
+              ) : (
+                <div style={{ fontSize:13, color:T.ink3 }}>—</div>
+              )
+            )}
+          </Card>
 
           {/* BCBA comment section */}
-          {(mode==="comment" || note?.bcba_comment) && (
+          {(isComment || note?.bcba_comment) && (
             <Card style={{ padding:"14px 18px", border:`1px solid ${T.navy}30` }}>
               <div style={{ fontSize:14, fontWeight:700, color:T.navy, marginBottom:10 }}>
                 🧠 BCBA observations
-                {mode!=="comment" && <span style={{ fontSize:12, fontWeight:400, color:T.ink3, marginLeft:8 }}>read only</span>}
+                {!isComment && <span style={{ fontSize:12, fontWeight:400, color:T.ink3, marginLeft:8 }}>read only</span>}
               </div>
-              {mode==="comment" ? (
+              {isComment ? (
                 <textarea
                   value={bcbaComment}
                   onChange={e=>setBcbaComment(e.target.value)}
@@ -209,12 +262,18 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
         {/* Footer */}
         <div style={{ padding:"16px 24px", borderTop:`1px solid ${T.border}`, background:T.white, borderRadius:"0 0 16px 16px", display:"flex", gap:10, flexShrink:0 }}>
           <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
-            Close
+            {isEdit ? "Cancel" : "Close"}
           </button>
-          {mode==="comment" && (
+          {isComment && (
             <button onClick={saveBcbaComment} disabled={saving}
               style={{ flex:2, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
               {saving?"Saving…":"💾 Save observations"}
+            </button>
+          )}
+          {isEdit && (
+            <button onClick={saveEdits} disabled={saving}
+              style={{ flex:2, padding:"10px 0", borderRadius:8, border:"none", background:T.green, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+              {saving?"Saving…":"✓ Save changes"}
             </button>
           )}
         </div>
