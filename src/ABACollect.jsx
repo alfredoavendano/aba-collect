@@ -1050,7 +1050,7 @@ function DashboardView({ patient }) {
                     style={{ flex:1, padding:"8px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
                     📝 Document
                   </button>
-                )}
+                )} 
                 {s.documentation_status==="documented" && (
                   <button onClick={()=>setViewingNote(s)}
                     style={{ flex:1, padding:"8px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
