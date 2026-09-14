@@ -1030,35 +1030,42 @@ function DashboardView({ patient }) {
       </div>
 
       {/* Session log */}
-      <Card style={{ marginTop:14 }}>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>Session history</div>
-        {sessions.slice().reverse().slice(0,8).map((s,i,arr)=>(
-          <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none" }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
-              <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>{s.rbt_name} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
-              <div style={{ fontSize:13, fontWeight:600 }}>{fmtHMS(s.duration_secs)}</div>
-              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
-                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
-              </span>
-              {s.documentation_status==="documented" && (
-                <div style={{ display:"flex", gap:6 }}>
+      <div style={{ marginTop:14 }}>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>Session history</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {sessions.slice().reverse().slice(0,10).map((s)=>(
+            <div key={s.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"14px 18px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700 }}>{new Date(s.started_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+                  <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}</div>
+                </div>
+                <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber, flexShrink:0 }}>
+                  {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+                </span>
+              </div>
+              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                {s.documentation_status==="pending" && (
+                  <button onClick={()=>{ setCompletedSession(s); setShowSessionNote(true); }}
+                    style={{ flex:1, padding:"8px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                    📝 Document
+                  </button>
+                )}
+                {s.documentation_status==="documented" && (
                   <button onClick={()=>setViewingNote(s)}
-                    style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                    style={{ flex:1, padding:"8px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
                     ✏️ Edit note
                   </button>
-                  <button onClick={()=>deleteSession(s.id)}
-                    style={{ fontSize:11, padding:"3px 10px", borderRadius:6, border:`1px solid ${T.red}30`, background:T.redLt, cursor:"pointer", fontWeight:600, color:T.red }}>
-                    🗑️ Delete
-                  </button>
-                </div>
-              )}
+                )}
+                <button onClick={()=>deleteSession(s.id)}
+                  style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${T.red}30`, background:T.redLt, fontSize:12, fontWeight:600, cursor:"pointer", color:T.red }}>
+                  🗑️
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </Card>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
