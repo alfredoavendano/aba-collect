@@ -1044,21 +1044,21 @@ function DashboardView({ patient, onDocument }) {
                   {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
                 </span>
               </div>
-              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+              <div style={{ display:"flex", gap:8, marginTop:10, justifyContent:"flex-end" }}>
                 {s.documentation_status==="pending" && (
                   <button onClick={()=>onDocument && onDocument(s)}
-                    style={{ flex:1, padding:"8px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                    style={{ padding:"6px 14px", borderRadius:7, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
                     📝 Document
                   </button>
-                )} 
+                )}
                 {s.documentation_status==="documented" && (
                   <button onClick={()=>setViewingNote(s)}
-                    style={{ flex:1, padding:"8px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
+                    style={{ padding:"6px 14px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
                     ✏️ Edit note
                   </button>
                 )}
                 <button onClick={()=>deleteSession(s.id)}
-                  style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${T.red}30`, background:T.redLt, fontSize:12, fontWeight:600, cursor:"pointer", color:T.red }}>
+                  style={{ padding:"6px 10px", borderRadius:7, border:`1px solid ${T.red}30`, background:T.redLt, fontSize:12, fontWeight:600, cursor:"pointer", color:T.red }}>
                   🗑️
                 </button>
               </div>
