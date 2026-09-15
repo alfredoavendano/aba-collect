@@ -1047,13 +1047,13 @@ function DashboardView({ patient, onDocument }) {
               <div style={{ display:"flex", gap:8, marginTop:10, justifyContent:"flex-end" }}>
                 {s.documentation_status==="pending" && (
                   <button onClick={()=>onDocument && onDocument(s)}
-                    style={{ padding:"6px 14px", borderRadius:7, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                  style={{ padding:"6px 14px", borderRadius:7, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer", minWidth:110 }}>
                     📝 Document
                   </button>
                 )}
                 {s.documentation_status==="documented" && (
                   <button onClick={()=>setViewingNote(s)}
-                    style={{ padding:"6px 14px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
+                  style={{ padding:"6px 14px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2, minWidth:110 }}>
                     ✏️ Edit note
                   </button>
                 )}
