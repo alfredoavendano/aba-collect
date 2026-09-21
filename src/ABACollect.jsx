@@ -891,6 +891,7 @@ function DashboardView({ patient, onDocument }) {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingNote, setViewingNote] = useState(null);
+  const [rangeFilter, setRangeFilter] = useState("all");
 
   useEffect(() => {
     if (!patient) return;
@@ -1465,7 +1466,6 @@ const endSession = async () => {
   function BCBADashboardView({ patient, onBack }) {
   const [sessions, setSessions] = useState([]);
   const [viewingNote, setViewingNote] = useState(null);
-  const [rangeFilter, setRangeFilter] = useState("all");
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
