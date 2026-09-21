@@ -1031,9 +1031,23 @@ function DashboardView({ patient, onDocument }) {
 
       {/* Session log */}
       <div style={{ marginTop:14 }}>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>Session history</div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ fontSize:15, fontWeight:700 }}>Session history</div>
+          <div style={{ display:"flex", gap:6 }}>
+            {["all","week","month","3months"].map(r=>(
+              <button key={r} onClick={()=>setRangeFilter(r)}
+                style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
+                {r==="all"?"All":r==="week"?"7 days":r==="month"?"30 days":"3 months"}
+              </button>
+            ))}
+          </div>
+        </div>
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          {sessions.slice().reverse().slice(0,10).map((s)=>(
+          {sessions.slice().reverse().filter(s=>{
+              if(rangeFilter==="all") return true;
+              const days = rangeFilter==="week"?7:rangeFilter==="month"?30:90;
+              return (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
+            }).slice(0,20).map((s)=>(
             <div key={s.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"14px 18px" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
                 <div>
@@ -1451,6 +1465,7 @@ const endSession = async () => {
   function BCBADashboardView({ patient, onBack }) {
   const [sessions, setSessions] = useState([]);
   const [viewingNote, setViewingNote] = useState(null);
+  const [rangeFilter, setRangeFilter] = useState("all");
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
