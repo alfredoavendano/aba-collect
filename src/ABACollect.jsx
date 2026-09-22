@@ -1043,42 +1043,56 @@ function DashboardView({ patient, onDocument }) {
             ))}
           </div>
         </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+
+        <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
           {sessions.slice().reverse().filter(s=>{
-              if(rangeFilter==="all") return true;
-              const days = rangeFilter==="week"?7:rangeFilter==="month"?30:90;
-              return (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
-            }).slice(0,20).map((s)=>(
-            <div key={s.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"14px 18px" }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:700 }}>{new Date(s.started_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
-                  <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}</div>
-                </div>
-                <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber, flexShrink:0 }}>
-                  {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
-                </span>
+            if(rangeFilter==="all") return true;
+            const days = rangeFilter==="week"?7:rangeFilter==="month"?30:90;
+            return (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
+          }).slice(0,20).map((s,i,arr)=>(
+            <div key={s.id}
+              style={{ display:"flex", alignItems:"center", gap:14, padding:"11px 16px", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none", transition:"background .12s", cursor:"default" }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+
+              {/* Date & time */}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:T.ink }}>{new Date(s.started_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+                <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>{new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}</div>
               </div>
-              <div style={{ display:"flex", gap:8, marginTop:10, justifyContent:"flex-end" }}>
-                {s.documentation_status==="pending" && (
+
+              {/* Status */}
+              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber, flexShrink:0 }}>
+                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+              </span>
+
+              {/* Actions */}
+              <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                {s.documentation_status==="pending" ? (
                   <button onClick={()=>onDocument && onDocument(s)}
-                  style={{ padding:"6px 14px", borderRadius:7, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer", minWidth:110 }}>
+                    style={{ padding:"5px 12px", borderRadius:6, border:"none", background:T.navy, color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer", minWidth:95 }}>
                     📝 Document
                   </button>
-                )}
-                {s.documentation_status==="documented" && (
+                ) : (
                   <button onClick={()=>setViewingNote(s)}
-                  style={{ padding:"6px 14px", borderRadius:7, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2, minWidth:110 }}>
+                    style={{ padding:"5px 12px", borderRadius:6, border:`1px solid ${T.border2}`, background:"transparent", fontSize:11, fontWeight:600, cursor:"pointer", color:T.ink2, minWidth:95 }}>
                     ✏️ Edit note
                   </button>
                 )}
                 <button onClick={()=>deleteSession(s.id)}
-                  style={{ padding:"6px 10px", borderRadius:7, border:`1px solid ${T.red}30`, background:T.redLt, fontSize:12, fontWeight:600, cursor:"pointer", color:T.red }}>
-                  🗑️
+                  style={{ padding:"5px 9px", borderRadius:6, border:`1px solid ${T.red}20`, background:"transparent", fontSize:13, cursor:"pointer", color:T.red, lineHeight:1 }}>
+                  🗑
                 </button>
               </div>
             </div>
           ))}
+          {sessions.filter(s=>{
+            if(rangeFilter==="all") return true;
+            const days = rangeFilter==="week"?7:rangeFilter==="month"?30:90;
+            return (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
+          }).length === 0 && (
+            <div style={{ textAlign:"center", padding:40, color:T.ink3, fontSize:13 }}>No sessions in this period</div>
+          )}
         </div>
       </div>
     </div>
