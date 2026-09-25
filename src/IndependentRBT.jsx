@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./supabase";
 import SessionNote from "./SessionNote";
+import SessionNoteViewer from "./SessionNoteViewer";
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
