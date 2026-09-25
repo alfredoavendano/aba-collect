@@ -917,12 +917,18 @@ function IndependentDashboard({ patient, userId }) {
   const [programs, setPrograms] = useState([]);
   const [dataPoints, setDataPoints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [rangeFilter, setRangeFilter] = useState("all");
+  const [viewingNote, setViewingNote] = useState(null);
+  const [completedSession, setCompletedSession] = useState(null);
+  const [showSessionNote, setShowSessionNote] = useState(false);
 
   useEffect(() => {
     if (!patient) return;
     setLoading(true);
     const load = async () => {
-      const { data: sessionData } = await supabase.from("sessions").select("*").eq("patient_id", patient.id).order("started_at", { ascending: true });
+      const { data: sessionData } = await supabase.from("sessions").select("*").eq("patient_id", patient.id)
+.is("deleted_at", null)
+.order("started_at", { ascending: true });
       const { data: progData } = await supabase.from("programs").select("*").eq("patient_id", patient.id).eq("status", "active");
       let dpData = [];
       if (sessionData?.length) {
@@ -954,6 +960,12 @@ function IndependentDashboard({ patient, userId }) {
       }
       return value !== null && value !== undefined ? { date: new Date(session.started_at).toLocaleDateString("en-US",{month:"numeric",day:"numeric"}), value } : null;
     }).filter(Boolean);
+  };
+
+    const deleteSession = async (id) => {
+    if(!window.confirm("Delete this session? It can be recovered later.")) return;
+    await supabase.from("sessions").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    load();
   };
 
   if (!patient) return (
@@ -1014,6 +1026,23 @@ function IndependentDashboard({ patient, userId }) {
 
   return (
     <div>
+      {viewingNote && (
+        <SessionNoteViewer
+          session={viewingNote}
+          patient={patient}
+          mode="edit"
+          userId={userId}
+          onClose={()=>setViewingNote(null)}
+        />
+      )}
+      {showSessionNote && completedSession && (
+        <div style={{ position:"fixed", inset:0, background:T.bg, zIndex:100, overflowY:"auto", padding:32 }}>
+          <SessionNote session={completedSession} patient={patient} programs={[]} user={{id:userId}}
+            onComplete={async()=>{ await supabase.from("sessions").update({documentation_status:"documented"}).eq("id",completedSession.id); setShowSessionNote(false); setCompletedSession(null); load(); }}
+            onSkip={()=>{ setShowSessionNote(false); setCompletedSession(null); }}
+          />
+        </div>
+      )}
       <Card style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20, padding:"16px 20px" }}>
         <div style={{ width:52, height:52, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
         <div><div style={{ fontSize:18, fontWeight:700 }}>{patient.name}</div><div style={{ fontSize:13, color:T.ink3, marginTop:2 }}>{patient.diagnosis}</div></div>
@@ -1045,23 +1074,63 @@ function IndependentDashboard({ patient, userId }) {
         })}
       </div>
 
-      <Card>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>Session history</div>
-        {sessions.slice().reverse().slice(0,8).map((s,i,arr)=>(
-          <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none" }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
-              <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
-            </div>
-            <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:13, fontWeight:600 }}>{fmtHMS(s.duration_secs)}</div>
-              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+      <div style={{ marginTop:4 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+          <div style={{ fontSize:15, fontWeight:700 }}>Session history</div>
+          <div style={{ display:"flex", gap:6 }}>
+            {["all","week","month","3months"].map(r=>(
+              <button key={r} onClick={()=>setRangeFilter(r)}
+                style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
+                {r==="all"?"All":r==="week"?"7 days":r==="month"?"30 days":"3 months"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
+          {sessions.slice().reverse().filter(s=>{
+            if(rangeFilter==="all") return true;
+            const days = rangeFilter==="week"?7:rangeFilter==="month"?30:90;
+            return (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
+          }).slice(0,20).map((s,i,arr)=>(
+            <div key={s.id}
+              style={{ display:"flex", alignItems:"center", gap:14, padding:"11px 16px", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:T.ink }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
+                <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>{new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}</div>
+              </div>
+              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber, flexShrink:0 }}>
                 {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
               </span>
+              <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                {s.documentation_status==="pending" ? (
+                  <button onClick={()=>{ setCompletedSession(s); setShowSessionNote(true); }}
+                    style={{ padding:"5px 12px", borderRadius:6, border:"none", background:T.navy, color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer", minWidth:95 }}>
+                    📝 Document
+                  </button>
+                ) : (
+                  <button onClick={()=>setViewingNote(s)}
+                    style={{ padding:"5px 12px", borderRadius:6, border:`1px solid ${T.border2}`, background:"transparent", fontSize:11, fontWeight:600, cursor:"pointer", color:T.ink2, minWidth:95 }}>
+                    ✏️ Edit note
+                  </button>
+                )}
+                <button onClick={()=>deleteSession(s.id)}
+                  style={{ padding:"5px 9px", borderRadius:6, border:`1px solid ${T.red}20`, background:"transparent", fontSize:13, cursor:"pointer", color:T.red }}>
+                  🗑
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </Card>
+          ))}
+          {sessions.filter(s=>{
+            if(rangeFilter==="all") return true;
+            const days = rangeFilter==="week"?7:rangeFilter==="month"?30:90;
+            return (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
+          }).length===0 && (
+            <div style={{ textAlign:"center", padding:40, color:T.ink3, fontSize:13 }}>No sessions in this period</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
