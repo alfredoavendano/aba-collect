@@ -69,23 +69,30 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
   };
 
   const saveEdits = async () => {
-    if(!note) return;
-    setSaving(true);
-
-    // Update free text
+  setSaving(true);
+  
+  if(!note) {
+    // Create note if doesn't exist
+    await supabase.from("session_notes").insert({
+      session_id: session.id,
+      created_by: userId,
+      free_text: editedFreeText,
+    });
+    await supabase.from("sessions").update({ documentation_status:"documented" }).eq("id", session.id);
+  } else {
+    // Update existing note
     await supabase.from("session_notes").update({ free_text: editedFreeText }).eq("id", note.id);
-
-    // Update each response
     for(const sec of sections) {
       const newText = editedResponses[sec.id]||"";
       if(sec.noteResponseId) {
         await supabase.from("note_responses").update({ response: newText }).eq("id", sec.noteResponseId);
       }
     }
+  }
 
-    setSaving(false);
-    onClose();
-  };
+  setSaving(false);
+  onClose();
+};
 
   const getSummary = (prog, pts) => {
     if(!pts.length) return { text:"No data", color:T.ink3, bg:T.bg2 };
