@@ -645,38 +645,47 @@ function RBTsTab({ rbts, patients, getPatientsForRBT }) {
 }
 
 // ─── Sessions Tab ─────────────────────────────────────────────────────────────
-function SessionsTab({ userId, patients }) {
+function SessionsTab({ userId, patients }) {function SessionsTab({ userId, patients }) {
   const [viewingNote, setViewingNote] = useState(null);
-  const downloadSessionPDF = async (session, patients) => {
-  const patient = patients.find(p => p.id === session.patient_id);
-  const [progsData, dpData, noteData] = await Promise.all([
-    supabase.from("programs").select("*").eq("patient_id", session.patient_id).eq("status","active"),
-    supabase.from("data_points").select("*").eq("session_id", session.id),
-    supabase.from("session_notes").select("*, note_responses(*)").eq("session_id", session.id).single(),
-  ]);
-  const responses = {};
-  if(noteData.data?.note_responses) {
-    noteData.data.note_responses.forEach(r => { responses[r.section_title||r.section_id] = r.response_text; });
-  }
-  generateSessionReport({
-    session,
-    patient,
-    programs: progsData.data||[],
-    dataPoints: dpData.data||[],
-    sessionNote: noteData.data?.free_text||"",
-    responses,
-  });
-};
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterPatient, setFilterPatient] = useState("all");
+  const [rangeFilter, setRangeFilter] = useState("all");
   const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
+
+  const downloadSessionPDF = async (session, patients) => {
+    const patient = patients.find(p => p.id === session.patient_id);
+    const [progsData, dpData, noteData] = await Promise.all([
+      supabase.from("programs").select("*").eq("patient_id", session.patient_id).eq("status","active"),
+      supabase.from("data_points").select("*").eq("session_id", session.id),
+      supabase.from("session_notes").select("*, note_responses(*)").eq("session_id", session.id).single(),
+    ]);
+    const responses = {};
+    if(noteData.data?.note_responses) {
+      noteData.data.note_responses.forEach(r => { responses[r.section_title||r.section_id] = r.response_text; });
+    }
+    generateSessionReport({
+      session, patient,
+      programs: progsData.data||[],
+      dataPoints: dpData.data||[],
+      sessionNote: noteData.data?.free_text||"",
+      responses,
+    });
+  };
 
   useEffect(()=>{
     const ids = patients.map(p=>p.id);
     if(!ids.length){ setLoading(false); return; }
-    supabase.from("sessions").select("*").in("patient_id",ids).order("started_at",{ascending:false}).limit(20)
+    supabase.from("sessions").select("*").in("patient_id",ids).is("deleted_at",null).order("started_at",{ascending:false}).limit(100)
       .then(({data})=>{ setSessions(data||[]); setLoading(false); });
   },[patients]);
+
+  const filtered = sessions.filter(s => {
+    const matchPatient = filterPatient==="all" || s.patient_id===filterPatient;
+    const days = rangeFilter==="week"?7:rangeFilter==="month"?30:rangeFilter==="3months"?90:null;
+    const matchRange = !days || (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
+    return matchPatient && matchRange;
+  });
 
   if(loading) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div>;
   if(!sessions.length) return (
@@ -685,52 +694,76 @@ function SessionsTab({ userId, patients }) {
       <div style={{ fontSize:18, fontWeight:700, color:T.ink2 }}>No sessions yet</div>
     </div>
   );
-return (
-  <div>
-    {viewingNote && (
-      <SessionNoteViewer
-        session={viewingNote.session}
-        patient={patients.find(p=>p.id===viewingNote.session.patient_id)}
-        mode="comment"
-        userId={userId}
-        onClose={()=>setViewingNote(null)}
-      />
-    )}
-    <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
-      {sessions.map((s,i)=>{
-        const patient = patients.find(p=>p.id===s.patient_id);
-        return (
-          <div key={s.id} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 20px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none" }}>
-            <div style={{ width:40, height:40, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
-              {patient?.initials||"?"}
-            </div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
-              <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleDateString()} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
-            </div>
-            <div style={{ textAlign:"right", display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
-              <div style={{ fontSize:14, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
-              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+
+  return (
+    <div>
+      {viewingNote && (
+        <SessionNoteViewer
+          session={viewingNote.session}
+          patient={patients.find(p=>p.id===viewingNote.session.patient_id)}
+          mode="comment"
+          userId={userId}
+          onClose={()=>setViewingNote(null)}
+        />
+      )}
+
+      {/* Filters */}
+      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <select value={filterPatient} onChange={e=>setFilterPatient(e.target.value)}
+          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
+          <option value="all">All patients</option>
+          {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <div style={{ display:"flex", gap:6 }}>
+          {["all","week","month","3months"].map(r=>(
+            <button key={r} onClick={()=>setRangeFilter(r)}
+              style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
+              {r==="all"?"All":r==="week"?"7 days":r==="month"?"30 days":"3 months"}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize:12, color:T.ink3, marginLeft:"auto" }}>{filtered.length} sessions</div>
+      </div>
+
+      {/* Sessions list */}
+      <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
+        {filtered.length===0 ? <div style={{ textAlign:"center", padding:40, color:T.ink3, fontSize:13 }}>No sessions found</div> :
+        filtered.map((s,i)=>{
+          const patient = patients.find(p=>p.id===s.patient_id);
+          return (
+            <div key={s.id}
+              style={{ display:"flex", alignItems:"center", gap:14, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{ width:36, height:36, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                {patient?.initials||"?"}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+                <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}</div>
+              </div>
+              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber, flexShrink:0 }}>
                 {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
               </span>
-              {s.documentation_status==="documented" && (
-                <button onClick={()=>downloadSessionPDF(s, patients)}
-                  style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
-                  ⬇ PDF
-                </button>
-              )}
-              {s.documentation_status==="documented" && (
-                <button onClick={()=>setViewingNote({ session:s })}
-                  style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
-                  📄 View & comment
-                </button>
-              )}
+              <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                {s.documentation_status==="documented" && (
+                  <>
+                    <button onClick={()=>setViewingNote({ session:s })}
+                      style={{ padding:"5px 12px", borderRadius:6, border:`1px solid ${T.border2}`, background:"transparent", fontSize:11, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
+                      📄 View & comment
+                    </button>
+                    <button onClick={()=>downloadSessionPDF(s, patients)}
+                      style={{ padding:"5px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:"transparent", fontSize:11, cursor:"pointer", color:T.ink2 }}>
+                      ⬇ PDF
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        );
-           })}
+          );
+        })}
+      </div>
     </div>
-  </div>
   );
 }
 
