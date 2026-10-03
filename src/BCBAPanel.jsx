@@ -840,7 +840,7 @@ function SessionsTab({ userId, patients, rbts=[] }) {
           const patient = patients.find(p=>p.id===s.patient_id);
           return (
             <div key={s.id}
-              style={{ display:"grid", gridTemplateColumns:"36px 1fr 110px 130px auto", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              style={{ display:"grid", gridTemplateColumns:"36px 1fr 100px 120px 260px", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
               onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <div style={{ width:36, height:36, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff" }}>
@@ -852,10 +852,10 @@ function SessionsTab({ userId, patients, rbts=[] }) {
                   {new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}
                 </div>
               </div>
-              <div style={{ display:"flex", justifyContent:"center" }}>
+              <div style={{ display:"flex", justifyContent:"flex-start" }}>
                 {s.rbt_name && <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:T.navyLt, color:T.navy }}>{s.rbt_name}</span>}
               </div>
-              <div style={{ display:"flex", justifyContent:"center" }}>
+              <div style={{ display:"flex", justifyContent:"flex-start" }}>
                 <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
                   {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
                 </span>
