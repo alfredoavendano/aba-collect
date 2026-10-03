@@ -840,29 +840,27 @@ function SessionsTab({ userId, patients, rbts=[] }) {
           const patient = patients.find(p=>p.id===s.patient_id);
           return (
             <div key={s.id}
-              style={{ display:"flex", alignItems:"center", gap:14, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              style={{ display:"grid", gridTemplateColumns:"36px 1fr 110px 130px auto", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
               onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <div style={{ width:36, height:36, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0 }}>
+              <div style={{ width:36, height:36, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff" }}>
                 {patient?.initials||"?"}
               </div>
-              <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
                 <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>
                   {new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}
                 </div>
               </div>
-              {s.rbt_name && (
-  <div style={{ width:100, flexShrink:0, display:"flex", alignItems:"center" }}>
-                  <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:T.navyLt, color:T.navy }}>
-                    {s.rbt_name}
-                  </span>
-                </div>
-              )}
-              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber, flexShrink:0 }}>
-                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
-              </span>
-              <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+              <div style={{ display:"flex", justifyContent:"center" }}>
+                {s.rbt_name && <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:T.navyLt, color:T.navy }}>{s.rbt_name}</span>}
+              </div>
+              <div style={{ display:"flex", justifyContent:"center" }}>
+                <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+                  {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+                </span>
+              </div>
+              <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
                 {s.documentation_status==="documented" && (
                   <>
                     <button onClick={()=>setViewingNote({ session:s })}
