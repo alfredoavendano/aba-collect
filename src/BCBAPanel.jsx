@@ -201,7 +201,7 @@ const NAV = [
           ) : tab==="dashboard" ? (
             <BCBADashboardView patient={dashboardPatient} onBack={()=>{ console.log("onBack called"); setTab("patients"); }} />
           ) : (
-            <SessionsTab userId={user.id} patients={patients} />
+            <SessionsTab userId={user.id} patients={patients} rbts={rbts} />
           )}
         </div>
       </div>
@@ -700,12 +700,13 @@ function PatientCombobox({ patients, value, onChange }) {
   );
 }
 // ─── Sessions Tab ─────────────────────────────────────────────────────────────
-function SessionsTab({ userId, patients }) {
+function SessionsTab({ userId, patients, rbts=[] }) {
   const [viewingNote, setViewingNote] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterPatient, setFilterPatient] = useState("all");
   const [rangeFilter, setRangeFilter] = useState("all");
+  const [filterRbt, setFilterRbt] = useState("all");
   const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
 
   const downloadSessionPDF = async (session, patients) => {
@@ -739,7 +740,8 @@ function SessionsTab({ userId, patients }) {
     const matchPatient = filterPatient==="all" || s.patient_id===filterPatient;
     const days = rangeFilter==="week"?7:rangeFilter==="month"?30:rangeFilter==="3months"?90:null;
     const matchRange = !days || (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
-    return matchPatient && matchRange;
+    const matchRbt = filterRbt==="all" || s.rbt_name===rbts.find(r=>r.id===filterRbt)?.full_name;
+    return matchPatient && matchRange && matchRbt;
   });
 
   if(loading) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div>;
@@ -791,8 +793,17 @@ function SessionsTab({ userId, patients }) {
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
-                <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}</div>
+                <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>
+                  {new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}
+                </div>
               </div>
+              {s.rbt_name && (
+                <div style={{ width:120, flexShrink:0 }}>
+                  <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:T.navyLt, color:T.navy }}>
+                    {s.rbt_name}
+                  </span>
+                </div>
+              )}
               <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber, flexShrink:0 }}>
                 {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
               </span>
