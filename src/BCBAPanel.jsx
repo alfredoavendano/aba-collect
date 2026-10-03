@@ -644,8 +644,63 @@ function RBTsTab({ rbts, patients, getPatientsForRBT }) {
   );
 }
 
+function PatientCombobox({ patients, value, onChange }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if(ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = value==="all" ? null : patients.find(p=>p.id===value);
+  const filtered = patients.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={ref} style={{ position:"relative", minWidth:180 }}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontSize:13 }}>
+        {selected ? (
+          <><div style={{ width:20, height:20, borderRadius:"50%", background:selected.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"#fff" }}>{selected.initials}</div><span style={{ fontWeight:600 }}>{selected.name}</span></>
+        ) : (
+          <span style={{ color:T.ink3 }}>All patients</span>
+        )}
+        <span style={{ marginLeft:"auto", color:T.ink3, fontSize:10 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:T.white, border:`1px solid ${T.border2}`, borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,.12)", zIndex:100, overflow:"hidden" }}>
+          <div style={{ padding:"8px 10px", borderBottom:`1px solid ${T.border}` }}>
+            <input autoFocus value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Search patient…"
+              style={{ width:"100%", border:"none", outline:"none", fontSize:13, fontFamily:"inherit", color:T.ink }}
+            />
+          </div>
+          <div style={{ maxHeight:200, overflowY:"auto" }}>
+            <div onClick={()=>{ onChange("all"); setSearch(""); setOpen(false); }}
+              style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:value==="all"?T.green:T.ink2, fontWeight:value==="all"?700:400, background:value==="all"?T.greenLt:"transparent" }}>
+              All patients
+            </div>
+            {filtered.map(p=>(
+              <div key={p.id} onClick={()=>{ onChange(p.id); setSearch(""); setOpen(false); }}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:value===p.id?T.greenLt:"transparent", borderTop:`1px solid ${T.border}` }}
+                onMouseEnter={e=>{ if(value!==p.id) e.currentTarget.style.background=T.bg2; }}
+                onMouseLeave={e=>{ if(value!==p.id) e.currentTarget.style.background="transparent"; }}>
+                <div style={{ width:24, height:24, borderRadius:"50%", background:p.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"#fff", flexShrink:0 }}>{p.initials}</div>
+                <span style={{ fontSize:13, fontWeight:value===p.id?700:400, color:value===p.id?T.green:T.ink }}>{p.name}</span>
+                {value===p.id && <span style={{ marginLeft:"auto", color:T.green, fontSize:12 }}>✓</span>}
+              </div>
+            ))}
+            {filtered.length===0 && <div style={{ padding:"12px", fontSize:12, color:T.ink3, textAlign:"center" }}>No patients found</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 // ─── Sessions Tab ─────────────────────────────────────────────────────────────
-function SessionsTab({ userId, patients }) {function SessionsTab({ userId, patients }) {
+function SessionsTab({ userId, patients }) {
   const [viewingNote, setViewingNote] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -709,11 +764,7 @@ function SessionsTab({ userId, patients }) {function SessionsTab({ userId, patie
 
       {/* Filters */}
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-        <select value={filterPatient} onChange={e=>setFilterPatient(e.target.value)}
-          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
-          <option value="all">All patients</option>
-          {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+<PatientCombobox patients={patients} value={filterPatient} onChange={setFilterPatient} />
         <div style={{ display:"flex", gap:6 }}>
           {["all","week","month","3months"].map(r=>(
             <button key={r} onClick={()=>setRangeFilter(r)}
