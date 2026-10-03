@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import TemplateManager from "./TemplateManager";
 import { generateSessionReport } from "./ReportGenerator";
