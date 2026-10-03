@@ -767,6 +767,11 @@ function SessionsTab({ userId, patients, rbts=[] }) {
       {/* Filters */}
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
 <PatientCombobox patients={patients} value={filterPatient} onChange={setFilterPatient} />
+<select value={filterRbt} onChange={e=>setFilterRbt(e.target.value)}
+  style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
+  <option value="all">All RBTs</option>
+  {rbts.map(r=><option key={r.id} value={r.id}>{r.full_name}</option>)}
+</select>
         <div style={{ display:"flex", gap:6 }}>
           {["all","week","month","3months"].map(r=>(
             <button key={r} onClick={()=>setRangeFilter(r)}
@@ -798,7 +803,7 @@ function SessionsTab({ userId, patients, rbts=[] }) {
                 </div>
               </div>
               {s.rbt_name && (
-                <div style={{ width:120, flexShrink:0 }}>
+  <div style={{ width:100, flexShrink:0, display:"flex", alignItems:"center" }}>
                   <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:T.navyLt, color:T.navy }}>
                     {s.rbt_name}
                   </span>
