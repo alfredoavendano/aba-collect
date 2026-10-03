@@ -71,17 +71,24 @@ export default function SessionNoteViewer({ session, patient, onClose, mode="vie
   const saveEdits = async () => {
   setSaving(true);
   
-  if(!note) {
-    // Create note if doesn't exist
+if(!note) {
+  // Check if a note already exists (race condition)
+  const { data: existing } = await supabase.from("session_notes")
+    .select("id").eq("session_id", session.id).single();
+  
+  if(existing) {
+    await supabase.from("session_notes").update({ free_text: editedFreeText }).eq("id", existing.id);
+  } else {
     await supabase.from("session_notes").insert({
       session_id: session.id,
       created_by: userId,
       free_text: editedFreeText,
     });
-    await supabase.from("sessions").update({ documentation_status:"documented" }).eq("id", session.id);
-  } else {
-    // Update existing note
-    await supabase.from("session_notes").update({ free_text: editedFreeText }).eq("id", note.id);
+  }
+  await supabase.from("sessions").update({ documentation_status:"documented" }).eq("id", session.id);
+} else {
+    const { data, error } = await supabase.from("session_notes").update({ free_text: editedFreeText }).eq("id", note.id);
+    console.log("update note result:", data, error);
     for(const sec of sections) {
       const newText = editedResponses[sec.id]||"";
       if(sec.noteResponseId) {
