@@ -681,7 +681,7 @@ function SessionsTab({ sessions, patients, bcbas=[], rbts=[], fmtHMS }) {
           const bcba=bcbas.find(b=>b.id===patient?.bcba_id);
           return (
             <div key={s.id}
-              style={{ display:"grid", gridTemplateColumns:"36px 1fr 120px 100px 120px 120px", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              style={{ display:"grid", gridTemplateColumns:"36px 1fr 150px 130px 120px 120px", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
               onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <div style={{ width:36, height:36, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff" }}>
