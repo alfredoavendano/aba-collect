@@ -596,8 +596,8 @@ function BcbaCombobox({ bcbas, value, onChange }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const selected = value==="all" ? null : bcbas.find(r=>b.id===value);
-  const filtered = bcbas.filter(r=>b.full_name.toLowerCase().includes(search.toLowerCase()));
+const selected = value==="all" ? null : bcbas.find(b=>b.id===value);
+const filtered = bcbas.filter(b=>b.full_name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div ref={ref} style={{ position:"relative", minWidth:160 }}>
@@ -623,13 +623,13 @@ function BcbaCombobox({ bcbas, value, onChange }) {
               style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:value==="all"?T.green:T.ink2, fontWeight:value==="all"?700:400, background:value==="all"?T.greenLt:"transparent" }}>
               All BCBAs
             </div>
-            {filtered.map(r=>(
-              <div key={b.id} onClick={()=>{ onChange(b.id); setSearch(""); setOpen(false); }}
-                style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:value===b.id?T.greenLt:"transparent", borderTop:`1px solid ${T.border}` }}
-                onMouseEnter={e=>{ if(value!==b.id) e.currentTarget.style.background=T.bg2; }}
-                onMouseLeave={e=>{ if(value!==b.id) e.currentTarget.style.background="transparent"; }}>
-                <span style={{ fontSize:13, fontWeight:value===b.id?700:400, color:value===b.id?T.green:T.ink }}>{b.full_name}</span>
-                {value===b.id && <span style={{ marginLeft:"auto", color:T.green, fontSize:12 }}>✓</span>}
+            {filtered.map(b=>(
+            <div key={b.id} onClick={()=>{ onChange(b.id); setSearch(""); setOpen(false); }}
+              style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:value===b.id?T.greenLt:"transparent", borderTop:`1px solid ${T.border}` }}
+              onMouseEnter={e=>{ if(value!==b.id) e.currentTarget.style.background=T.bg2; }}
+              onMouseLeave={e=>{ if(value!==b.id) e.currentTarget.style.background="transparent"; }}>
+              <span style={{ fontSize:13, fontWeight:value===b.id?700:400, color:value===b.id?T.green:T.ink }}>{b.full_name}</span>
+              {value===b.id && <span style={{ marginLeft:"auto", color:T.green, fontSize:12 }}>✓</span>}
               </div>
             ))}
             {filtered.length===0 && <div style={{ padding:"12px", fontSize:12, color:T.ink3, textAlign:"center" }}>No BCBAs found</div>}
