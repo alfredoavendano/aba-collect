@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import SessionNoteViewer from "./SessionNoteViewer";
 
@@ -475,6 +475,171 @@ function RBTsTab({ rbts, assignments, patients }) {
   );
 }
 
+function PatientCombobox({ patients, value, onChange }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if(ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = value==="all" ? null : patients.find(p=>p.id===value);
+  const filtered = patients.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={ref} style={{ position:"relative", minWidth:180 }}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontSize:13 }}>
+        {selected ? (
+          <><div style={{ width:20, height:20, borderRadius:"50%", background:selected.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"#fff" }}>{selected.initials}</div><span style={{ fontWeight:600 }}>{selected.name}</span></>
+        ) : (
+          <span style={{ color:T.ink3 }}>All patients</span>
+        )}
+        <span style={{ marginLeft:"auto", color:T.ink3, fontSize:10 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:T.white, border:`1px solid ${T.border2}`, borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,.12)", zIndex:100, overflow:"hidden" }}>
+          <div style={{ padding:"8px 10px", borderBottom:`1px solid ${T.border}` }}>
+            <input autoFocus value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Search patient…"
+              style={{ width:"100%", border:"none", outline:"none", fontSize:13, fontFamily:"inherit", color:T.ink }}
+            />
+          </div>
+          <div style={{ maxHeight:200, overflowY:"auto" }}>
+            <div onClick={()=>{ onChange("all"); setSearch(""); setOpen(false); }}
+              style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:value==="all"?T.green:T.ink2, fontWeight:value==="all"?700:400, background:value==="all"?T.greenLt:"transparent" }}>
+              All patients
+            </div>
+            {filtered.map(p=>(
+              <div key={p.id} onClick={()=>{ onChange(p.id); setSearch(""); setOpen(false); }}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:value===p.id?T.greenLt:"transparent", borderTop:`1px solid ${T.border}` }}
+                onMouseEnter={e=>{ if(value!==p.id) e.currentTarget.style.background=T.bg2; }}
+                onMouseLeave={e=>{ if(value!==p.id) e.currentTarget.style.background="transparent"; }}>
+                <div style={{ width:24, height:24, borderRadius:"50%", background:p.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"#fff", flexShrink:0 }}>{p.initials}</div>
+                <span style={{ fontSize:13, fontWeight:value===p.id?700:400, color:value===p.id?T.green:T.ink }}>{p.name}</span>
+                {value===p.id && <span style={{ marginLeft:"auto", color:T.green, fontSize:12 }}>✓</span>}
+              </div>
+            ))}
+            {filtered.length===0 && <div style={{ padding:"12px", fontSize:12, color:T.ink3, textAlign:"center" }}>No patients found</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function RbtCombobox({ rbts, value, onChange }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if(ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = value==="all" ? null : rbts.find(r=>r.id===value);
+  const filtered = rbts.filter(r=>r.full_name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={ref} style={{ position:"relative", minWidth:160 }}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontSize:13 }}>
+        {selected ? (
+          <span style={{ fontWeight:600 }}>{selected.full_name}</span>
+        ) : (
+          <span style={{ color:T.ink3 }}>All RBTs</span>
+        )}
+        <span style={{ marginLeft:"auto", color:T.ink3, fontSize:10 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:T.white, border:`1px solid ${T.border2}`, borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,.12)", zIndex:100, overflow:"hidden" }}>
+          <div style={{ padding:"8px 10px", borderBottom:`1px solid ${T.border}` }}>
+            <input autoFocus value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Search RBT…"
+              style={{ width:"100%", border:"none", outline:"none", fontSize:13, fontFamily:"inherit", color:T.ink }}
+            />
+          </div>
+          <div style={{ maxHeight:200, overflowY:"auto" }}>
+            <div onClick={()=>{ onChange("all"); setSearch(""); setOpen(false); }}
+              style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:value==="all"?T.green:T.ink2, fontWeight:value==="all"?700:400, background:value==="all"?T.greenLt:"transparent" }}>
+              All RBTs
+            </div>
+            {filtered.map(r=>(
+              <div key={r.id} onClick={()=>{ onChange(r.id); setSearch(""); setOpen(false); }}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:value===r.id?T.greenLt:"transparent", borderTop:`1px solid ${T.border}` }}
+                onMouseEnter={e=>{ if(value!==r.id) e.currentTarget.style.background=T.bg2; }}
+                onMouseLeave={e=>{ if(value!==r.id) e.currentTarget.style.background="transparent"; }}>
+                <span style={{ fontSize:13, fontWeight:value===r.id?700:400, color:value===r.id?T.green:T.ink }}>{r.full_name}</span>
+                {value===r.id && <span style={{ marginLeft:"auto", color:T.green, fontSize:12 }}>✓</span>}
+              </div>
+            ))}
+            {filtered.length===0 && <div style={{ padding:"12px", fontSize:12, color:T.ink3, textAlign:"center" }}>No RBTs found</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+// ─── Sessions Tab ─────────────────────────────────────────────────────────────
+function BcbaCombobox({ bcbas, value, onChange }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if(ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const selected = value==="all" ? null : bcbas.find(r=>b.id===value);
+  const filtered = bcbas.filter(r=>b.full_name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={ref} style={{ position:"relative", minWidth:160 }}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontSize:13 }}>
+        {selected ? (
+          <span style={{ fontWeight:600 }}>{selected.full_name}</span>
+        ) : (
+          <span style={{ color:T.ink3 }}>All BCBAs</span>
+        )}
+        <span style={{ marginLeft:"auto", color:T.ink3, fontSize:10 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:T.white, border:`1px solid ${T.border2}`, borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,.12)", zIndex:100, overflow:"hidden" }}>
+          <div style={{ padding:"8px 10px", borderBottom:`1px solid ${T.border}` }}>
+            <input autoFocus value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Search BCBA…"
+              style={{ width:"100%", border:"none", outline:"none", fontSize:13, fontFamily:"inherit", color:T.ink }}
+            />
+          </div>
+          <div style={{ maxHeight:200, overflowY:"auto" }}>
+            <div onClick={()=>{ onChange("all"); setSearch(""); setOpen(false); }}
+              style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:value==="all"?T.green:T.ink2, fontWeight:value==="all"?700:400, background:value==="all"?T.greenLt:"transparent" }}>
+              All BCBAs
+            </div>
+            {filtered.map(r=>(
+              <div key={b.id} onClick={()=>{ onChange(b.id); setSearch(""); setOpen(false); }}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:value===b.id?T.greenLt:"transparent", borderTop:`1px solid ${T.border}` }}
+                onMouseEnter={e=>{ if(value!==b.id) e.currentTarget.style.background=T.bg2; }}
+                onMouseLeave={e=>{ if(value!==b.id) e.currentTarget.style.background="transparent"; }}>
+                <span style={{ fontSize:13, fontWeight:value===b.id?700:400, color:value===b.id?T.green:T.ink }}>{b.full_name}</span>
+                {value===b.id && <span style={{ marginLeft:"auto", color:T.green, fontSize:12 }}>✓</span>}
+              </div>
+            ))}
+            {filtered.length===0 && <div style={{ padding:"12px", fontSize:12, color:T.ink3, textAlign:"center" }}>No BCBAs found</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+// ─── Sessions Tab ─────────────────────────────────────────────────────────────
 function SessionsTab({ sessions, patients, bcbas=[], rbts=[], fmtHMS }) {
   const [viewingNote, setViewingNote] = useState(null);
   const [filterPatient, setFilterPatient] = useState("all");
@@ -494,23 +659,10 @@ function SessionsTab({ sessions, patients, bcbas=[], rbts=[], fmtHMS }) {
 
   return (
     <div>
-      {/* Filters */}
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-        <select value={filterPatient} onChange={e=>setFilterPatient(e.target.value)}
-          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
-          <option value="all">All patients</option>
-          {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <select value={filterBcba} onChange={e=>setFilterBcba(e.target.value)}
-          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
-          <option value="all">All BCBAs</option>
-          {bcbas.map(b=><option key={b.id} value={b.id}>{b.full_name}</option>)}
-        </select>
-        <select value={filterRbt} onChange={e=>setFilterRbt(e.target.value)}
-          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
-          <option value="all">All RBTs</option>
-          {rbts.map(r=><option key={r.id} value={r.id}>{r.full_name}</option>)}
-        </select>
+        <PatientCombobox patients={patients} value={filterPatient} onChange={setFilterPatient} />
+        <BcbaCombobox bcbas={bcbas} value={filterBcba} onChange={setFilterBcba} />
+        <RbtCombobox rbts={rbts} value={filterRbt} onChange={setFilterRbt} />
         <div style={{ display:"flex", gap:6 }}>
           {["all","week","month","3months"].map(r=>(
             <button key={r} onClick={()=>setRangeFilter(r)}
@@ -522,7 +674,6 @@ function SessionsTab({ sessions, patients, bcbas=[], rbts=[], fmtHMS }) {
         <div style={{ fontSize:12, color:T.ink3, marginLeft:"auto" }}>{filtered.length} sessions</div>
       </div>
 
-      {/* Sessions list */}
       <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
         {filtered.length===0 ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>No sessions found</div> :
         filtered.map((s,i)=>{
@@ -530,7 +681,7 @@ function SessionsTab({ sessions, patients, bcbas=[], rbts=[], fmtHMS }) {
           const bcba=bcbas.find(b=>b.id===patient?.bcba_id);
           return (
             <div key={s.id}
-              style={{ display:"grid", gridTemplateColumns:"36px 1fr 100px 100px 120px auto", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              style={{ display:"grid", gridTemplateColumns:"36px 1fr 120px 100px 120px 120px", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
               onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <div style={{ width:36, height:36, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff" }}>
