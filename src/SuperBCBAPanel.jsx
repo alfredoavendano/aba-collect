@@ -230,7 +230,7 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
           ) : tab==="rbts" ? (
             <RBTsTab rbts={rbts} assignments={assignments} patients={patients} />
           ) : tab==="sessions" ? (
-            <SessionsTab sessions={sessions} patients={patients} fmtHMS={fmtHMS} />
+            <SessionsTab sessions={sessions} patients={patients} bcbas={bcbas} rbts={rbts} fmtHMS={fmtHMS} />
           ) : tab==="users" ? (
             <UsersTab showToast={showToast} />
           ) : null}
@@ -475,37 +475,90 @@ function RBTsTab({ rbts, assignments, patients }) {
   );
 }
 
-function SessionsTab({ sessions, patients, fmtHMS }) {
+function SessionsTab({ sessions, patients, bcbas=[], rbts=[], fmtHMS }) {
   const [viewingNote, setViewingNote] = useState(null);
+  const [filterPatient, setFilterPatient] = useState("all");
+  const [filterBcba, setFilterBcba] = useState("all");
+  const [filterRbt, setFilterRbt] = useState("all");
+  const [rangeFilter, setRangeFilter] = useState("all");
+
+  const filtered = sessions.filter(s => {
+    const matchPatient = filterPatient==="all" || s.patient_id===filterPatient;
+    const patient = patients.find(p=>p.id===s.patient_id);
+    const matchBcba = filterBcba==="all" || patient?.bcba_id===filterBcba;
+    const matchRbt = filterRbt==="all" || s.rbt_name===rbts.find(r=>r.id===filterRbt)?.full_name;
+    const days = rangeFilter==="week"?7:rangeFilter==="month"?30:rangeFilter==="3months"?90:null;
+    const matchRange = !days || (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
+    return matchPatient && matchBcba && matchRbt && matchRange;
+  });
 
   return (
     <div>
-      <div style={{ fontSize:13, color:T.ink3, marginBottom:14, fontWeight:500 }}>{sessions.length} recent sessions</div>
+      {/* Filters */}
+      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <select value={filterPatient} onChange={e=>setFilterPatient(e.target.value)}
+          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
+          <option value="all">All patients</option>
+          {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <select value={filterBcba} onChange={e=>setFilterBcba(e.target.value)}
+          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
+          <option value="all">All BCBAs</option>
+          {bcbas.map(b=><option key={b.id} value={b.id}>{b.full_name}</option>)}
+        </select>
+        <select value={filterRbt} onChange={e=>setFilterRbt(e.target.value)}
+          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
+          <option value="all">All RBTs</option>
+          {rbts.map(r=><option key={r.id} value={r.id}>{r.full_name}</option>)}
+        </select>
+        <div style={{ display:"flex", gap:6 }}>
+          {["all","week","month","3months"].map(r=>(
+            <button key={r} onClick={()=>setRangeFilter(r)}
+              style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
+              {r==="all"?"All":r==="week"?"7 days":r==="month"?"30 days":"3 months"}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize:12, color:T.ink3, marginLeft:"auto" }}>{filtered.length} sessions</div>
+      </div>
+
+      {/* Sessions list */}
       <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
-        {sessions.length===0 ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>No sessions yet</div> :
-        sessions.map((s,i)=>{
+        {filtered.length===0 ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>No sessions found</div> :
+        filtered.map((s,i)=>{
           const patient=patients.find(p=>p.id===s.patient_id);
+          const bcba=bcbas.find(b=>b.id===patient?.bcba_id);
           return (
-            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 20px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none" }}>
-              <div style={{ width:40, height:40, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
+            <div key={s.id}
+              style={{ display:"grid", gridTemplateColumns:"36px 1fr 100px 100px 120px auto", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{ width:36, height:36, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff" }}>
                 {patient?.initials||"?"}
               </div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
-                <div style={{ fontSize:12, color:T.ink3, marginTop:2 }}>{new Date(s.started_at).toLocaleDateString()} · {s.rbt_name&&`RBT: ${s.rbt_name}`}</div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+                <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs)}</div>
               </div>
-              <div style={{ textAlign:"right", display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
-              <div style={{ fontSize:13, fontWeight:700 }}>{fmtHMS(s.duration_secs)}</div>
-              <span style={{ fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
-                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
-              </span>
-              {s.documentation_status==="documented" && (
-                <button onClick={()=>setViewingNote({ session: s })}
-                  style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
-                  📄 View note
-                </button>
-              )}
-            </div>
+              <div>
+                {bcba && <span style={{ fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:99, background:T.greenLt, color:T.green }}>{bcba.full_name}</span>}
+              </div>
+              <div>
+                {s.rbt_name && <span style={{ fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:99, background:T.navyLt, color:T.navy }}>{s.rbt_name}</span>}
+              </div>
+              <div>
+                <span style={{ fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
+                  {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
+                </span>
+              </div>
+              <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                {s.documentation_status==="documented" && (
+                  <button onClick={()=>setViewingNote({ session: s })}
+                    style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.border2}`, background:T.white, cursor:"pointer", fontWeight:600, color:T.ink2 }}>
+                    📄 View note
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
