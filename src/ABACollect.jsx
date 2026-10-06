@@ -1182,16 +1182,17 @@ useEffect(() => {
   useEffect(()=>{ loadPendingSessions(); },[selectedPatientId]);
   useEffect(() => {
   if(pendingStart && selectedPatientId) {
-    setPendingStart(false);
+setPendingStart(false);
     startSession();
     setView("session");
   }
-  useEffect(() => {
-    if(!loading) {
-      setView(pendingSessions.length > 0 ? "todo" : "schedule");
-    }
-  }, [loading]);
 }, [pendingStart, selectedPatientId]);
+
+useEffect(() => {
+  if(!loading) {
+    setView(pendingSessions.length > 0 ? "todo" : "schedule");
+  }
+}, [loading]);
 
   const loadData = async () => {
     setLoading(true);
