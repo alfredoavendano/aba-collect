@@ -729,10 +729,10 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
       <TodaySchedule 
         userId={userId} 
         patients={patients} 
-        onStart={(patientId)=>{ setSelectedPatientId(patientId); startSession(); }} 
+        onStart={(patientId)=>{ setSelectedPatientId(patientId); setPendingStart(true); }} 
       />
       {pendingSessions.length>0 && (
-        <div style={{ background:T.amberLt, border:`1px solid ${T.amberMd}40`, borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
+        <div style={{ background:T.bg2, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
           <div style={{ fontSize:14, fontWeight:700, color:T.amber, marginBottom:10 }}>
             {pendingSessions.length} session{pendingSessions.length>1?"s":""} pending documentation
           </div>
@@ -1184,6 +1184,12 @@ useEffect(() => {
   return () => window.removeEventListener("popstate", handlePopState);
 }, [view]);
   useEffect(()=>{ loadPendingSessions(); },[selectedPatientId]);
+  useEffect(() => {
+  if(pendingStart && selectedPatientId) {
+    setPendingStart(false);
+    startSession();
+  }
+}, [pendingStart, selectedPatientId]);
 
   const loadData = async () => {
     setLoading(true);
