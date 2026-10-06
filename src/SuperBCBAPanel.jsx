@@ -1223,8 +1223,10 @@ function EditPatientForm({ patient, onClose, onSave }) {
         </div>
       </div>
     </div>
-  );
-  function AuditTab({ userId, patients }) {
+   );
+}
+
+function AuditTab({ userId, patients }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -1307,5 +1309,4 @@ function EditPatientForm({ patient, onClose, onSave }) {
       </div>
     </div>
   );
-}
 }
