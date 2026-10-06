@@ -727,6 +727,11 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
   const sorted = [...programs].sort((a,b)=>typeOrder.indexOf(a.type)-typeOrder.indexOf(b.type));
   return (
     <div>
+      <TodaySchedule 
+        userId={user.id} 
+        patients={patients} 
+        onStart={(patientId)=>{ setSelectedPatientId(patientId); startSession(); }} 
+      />
       {pendingSessions.length>0 && (
         <div style={{ background:T.amberLt, border:`1px solid ${T.amberMd}40`, borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
           <div style={{ fontSize:14, fontWeight:700, color:T.amber, marginBottom:10 }}>
@@ -745,6 +750,7 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
           </div>
         </div>
       )}
+
       {!sessionActive && (
         <div style={{ background:T.amberLt, border:`1px solid ${T.amberMd}40`, borderRadius:10, padding:"12px 16px", marginBottom:20, fontSize:13, color:T.amber, fontWeight:600 }}>
           ⚠ Press "Start session" below to begin recording
@@ -1575,4 +1581,54 @@ const endSession = async () => {
       </Card>
     </div>
   );
+  function TodaySchedule({ userId, patients, onStart }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadToday(); }, []);
+
+  const loadToday = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase.from("scheduled_sessions")
+      .select("*")
+      .eq("rbt_id", userId)
+      .eq("scheduled_date", today)
+      .in("status", ["scheduled","in_progress"])
+      .order("scheduled_time");
+    setSessions(data||[]);
+    setLoading(false);
+  };
+
+  if(loading || !sessions.length) return null;
+
+  return (
+    <div style={{ background:"#EEF2FF", border:"1px solid #6366F130", borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
+      <div style={{ fontSize:14, fontWeight:700, color:"#4338CA", marginBottom:12 }}>
+        📅 Today's schedule — {sessions.length} session{sessions.length>1?"s":""}
+      </div>
+      {sessions.map(s=>{
+        const patient = patients.find(p=>p.id===s.patient_id);
+        return (
+          <div key={s.id} style={{ display:"flex", alignItems:"center", gap:12, background:"#fff", borderRadius:8, padding:"10px 14px", marginBottom:8 }}>
+            <div style={{ width:32, height:32, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
+              {patient?.initials||"?"}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+              <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>
+                {s.scheduled_time?.slice(0,5)} · {s.duration_mins} min
+                {s.location_text && ` · ${s.location_text}`}
+              </div>
+              {s.notes && <div style={{ fontSize:11, color:"#4338CA", marginTop:2 }}>📝 {s.notes}</div>}
+            </div>
+            <button onClick={()=>onStart(s.patient_id)}
+              style={{ padding:"7px 16px", borderRadius:8, border:"none", background:"#4338CA", color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+              ▶ Start
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 }
