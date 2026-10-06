@@ -1184,6 +1184,7 @@ useEffect(() => {
   if(pendingStart && selectedPatientId) {
     setPendingStart(false);
     startSession();
+    setView("session");
   }
 }, [pendingStart, selectedPatientId]);
 
