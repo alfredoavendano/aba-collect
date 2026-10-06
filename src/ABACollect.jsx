@@ -1139,7 +1139,7 @@ export default function App({ user, profile, onLogout }) {
   const [programsByPatient, setProgramsByPatient] = useState({});
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("schedule");
+  const [view, setView] = useState("todo");
   const [sessionActive, setSessionActive] = useState(false);
   const [currentSession, setCurrentSession] = useState(null);
   const [pendingStart, setPendingStart] = useState(false);
@@ -1186,6 +1186,11 @@ useEffect(() => {
     startSession();
     setView("session");
   }
+  useEffect(() => {
+    if(!loading) {
+      setView(pendingSessions.length > 0 ? "todo" : "schedule");
+    }
+  }, [loading]);
 }, [pendingStart, selectedPatientId]);
 
   const loadData = async () => {
@@ -1268,9 +1273,10 @@ const endSession = async () => {
   const patientPrograms = programsByPatient[selectedPatientId]||[];
 
   const NAV = [
-    {id:"schedule", label:"Schedule",  icon:"📅"},
-    {id:"session",  label:"Session",   icon:"⏺"},
-    {id:"dashboard",label:"Dashboard", icon:"📊"},
+    ...(pendingSessions.length > 0 ? [{id:"todo", label:"To Do", icon:"✅"}] : []),
+    {id:"schedule",  label:"Schedule",  icon:"📅"},
+    {id:"session",   label:"Session",   icon:"⏺"},
+    {id:"dashboard", label:"Dashboard", icon:"📊"},
   ];
   const viewTitles={schedule:"My schedule",session:"Session recording",dashboard:"Dashboard"};
 
@@ -1439,6 +1445,7 @@ const endSession = async () => {
         {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:28}}>
           {view==="schedule"&&<RbtScheduleView userId={user?.id} patients={patients} onStartSession={(patientId)=>{ setSelectedPatientId(patientId); setPendingStart(true); }} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
+          {view==="todo"&&<TodoView pendingSessions={pendingSessions} patients={patients} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
           {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id} patients={patients}/>}
           {view==="dashboard"&&<DashboardView patient={patient} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}} patients={patients} onSelectPatient={setSelectedPatientId}/>}
         </div>
@@ -1739,6 +1746,39 @@ function RbtScheduleView({ userId, patients, onStartSession, onDocument }) {
   );
 }
 
+function TodoView({ pendingSessions, patients, onDocument }) {
+  const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
+  if(!pendingSessions.length) return null;
+  return (
+    <div>
+      <div style={{ fontSize:14, fontWeight:700, color:T.amber, marginBottom:16 }}>
+        {pendingSessions.length} session{pendingSessions.length>1?"s":""} pending documentation
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {pendingSessions.map(s=>{
+          const patient = patients.find(p=>p.id===s.patient_id);
+          return (
+            <div key={s.id} style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, padding:"14px 18px", display:"flex", alignItems:"center", gap:14 }}>
+              <div style={{ width:40, height:40, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                {patient?.initials||"?"}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+                <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>
+                  {new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} · {fmtHMS(s.duration_secs||0)}
+                </div>
+              </div>
+              <button onClick={()=>onDocument(s)}
+                style={{ padding:"8px 16px", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                📝 Document
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function TodaySchedule({ userId, patients, onStart }) {
   const [sessions, setSessions] = useState([]);
