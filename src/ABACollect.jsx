@@ -726,11 +726,6 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
   const sorted = [...programs].sort((a,b)=>typeOrder.indexOf(a.type)-typeOrder.indexOf(b.type));
   return (
     <div>
-      <TodaySchedule 
-        userId={userId} 
-        patients={patients} 
-        onStart={(patientId)=>{ setSelectedPatientId(patientId); setPendingStart(true); }} 
-      />
       {pendingSessions.length>0 && (
         <div style={{ background:T.bg2, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
           <div style={{ fontSize:14, fontWeight:700, color:T.amber, marginBottom:10 }}>
@@ -1144,9 +1139,10 @@ export default function App({ user, profile, onLogout }) {
   const [programsByPatient, setProgramsByPatient] = useState({});
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("session");
+  const [view, setView] = useState("schedule");
   const [sessionActive, setSessionActive] = useState(false);
   const [currentSession, setCurrentSession] = useState(null);
+  const [pendingStart, setPendingStart] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [hoveredNav, setHoveredNav] = useState(null);
   const [sessionSecs, setSessionSecs] = useState(0);
@@ -1271,13 +1267,11 @@ const endSession = async () => {
   const patientPrograms = programsByPatient[selectedPatientId]||[];
 
   const NAV = [
-    {id:"session",label:"Session",icon:"⏺"},
-    {id:"programs",label:"Programs",icon:"📋"},
-    {id:"patients",label:"Patients",icon:"👥"},
-    {id:"dashboard",label:"Dashboard",icon:"📊"},
-    {id:"reports",label:"Reports",icon:"📄"},
+    {id:"schedule", label:"Schedule",  icon:"📅"},
+    {id:"session",  label:"Session",   icon:"⏺"},
+    {id:"dashboard",label:"Dashboard", icon:"📊"},
   ];
-  const viewTitles={session:"Session recording",programs:"Treatment programs",patients:"Patients",dashboard:"BCBA dashboard",reports:"Reports & exports"};
+  const viewTitles={schedule:"My schedule",session:"Session recording",dashboard:"Dashboard"};
 
   if(loading) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:16,background:T.bg,fontFamily:"'Inter',system-ui,sans-serif"}}>
@@ -1443,8 +1437,9 @@ const endSession = async () => {
 
         {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:28}}>
-          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id} patients={patients}/>}          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
-          {view==="reports"&&<ReportsView patient={patient}/>}
+          {view==="schedule"&&<RbtScheduleView userId={user?.id} patients={patients} onStartSession={(patientId)=>{ setSelectedPatientId(patientId); setPendingStart(true); }} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
+          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id} patients={patients}/>}
+          {view==="dashboard"&&<DashboardView patient={patient} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}} patients={patients} onSelectPatient={setSelectedPatientId}/>}
         </div>
 
         {/* Session bar */}
@@ -1586,6 +1581,163 @@ const endSession = async () => {
     </div>
   );
 }
+
+function RbtScheduleView({ userId, patients, onStartSession, onDocument }) {
+  const [scheduled, setScheduled] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [rangeFilter, setRangeFilter] = useState("week");
+  const [viewingNote, setViewingNote] = useState(null);
+
+  useEffect(() => { loadScheduled(); }, [rangeFilter]);
+
+  const loadScheduled = async () => {
+    setLoading(true);
+    const today = new Date();
+    const from = new Date(today); from.setHours(0,0,0,0);
+    const days = rangeFilter==="today"?0:rangeFilter==="week"?7:30;
+    const to = new Date(today); to.setDate(to.getDate()+days); to.setHours(23,59,59,999);
+
+    const { data } = await supabase.from("scheduled_sessions")
+      .select("*")
+      .eq("rbt_id", userId)
+      .gte("scheduled_date", from.toISOString().split("T")[0])
+      .lte("scheduled_date", to.toISOString().split("T")[0])
+      .order("scheduled_date").order("scheduled_time");
+    setScheduled(data||[]);
+    setLoading(false);
+  };
+
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const groupByDate = (sessions) => {
+    const groups = {};
+    sessions.forEach(s => {
+      if(!groups[s.scheduled_date]) groups[s.scheduled_date] = [];
+      groups[s.scheduled_date].push(s);
+    });
+    return groups;
+  };
+
+  const statusColors = {
+    scheduled:   { bg:"#EEF2FF", color:"#4338CA" },
+    in_progress: { bg:T.greenLt, color:T.green },
+    completed:   { bg:T.greenLt, color:T.green },
+    cancelled:   { bg:T.redLt,   color:T.red },
+    no_show:     { bg:T.amberLt, color:T.amber },
+  };
+
+  const groups = groupByDate(scheduled);
+  const pendingDocs = scheduled.filter(s => s.session_id && s.status==="completed");
+
+  return (
+    <div>
+      {viewingNote && (
+        <SessionNoteViewer
+          session={viewingNote}
+          patient={patients.find(p=>p.id===viewingNote.patient_id)}
+          mode="edit"
+          userId={userId}
+          onClose={()=>setViewingNote(null)}
+        />
+      )}
+
+      {/* Filters */}
+      <div style={{ display:"flex", gap:8, marginBottom:20, alignItems:"center" }}>
+        <div style={{ fontSize:14, fontWeight:700, color:T.ink, flex:1 }}>My schedule</div>
+        <div style={{ display:"flex", gap:6 }}>
+          {["today","week","month"].map(r=>(
+            <button key={r} onClick={()=>setRangeFilter(r)}
+              style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
+              {r==="today"?"Today":r==="week"?"This week":"This month"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>Loading…</div> :
+      Object.keys(groups).length===0 ? (
+        <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
+          <div style={{ fontSize:18, fontWeight:700, color:T.ink2, marginBottom:6 }}>No sessions scheduled</div>
+          <div style={{ fontSize:13 }}>Your BCBA will schedule sessions for you here</div>
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {Object.entries(groups).map(([date, sessions])=>{
+            const isToday = date === todayStr;
+            return (
+              <div key={date}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:isToday?T.navy:T.ink3, textTransform:"uppercase", letterSpacing:".06em" }}>
+                    {isToday ? "🗓 Today — " : ""}{new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
+                  </div>
+                  {isToday && <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:99, background:T.navy, color:"#fff" }}>TODAY</span>}
+                </div>
+                <div style={{ background:T.white, border:`1px solid ${isToday?T.navy:T.border}`, borderRadius:12, overflow:"hidden", borderWidth:isToday?2:1 }}>
+                  {sessions.map((s,i)=>{
+                    const patient = patients.find(p=>p.id===s.patient_id);
+                    const sc = statusColors[s.status]||{ bg:T.bg2, color:T.ink3 };
+                    const canStart = isToday && s.status==="scheduled";
+                    const canDocument = s.session_id && s.status!=="cancelled";
+                    return (
+                      <div key={s.id}
+                        style={{ display:"grid", gridTemplateColumns:"60px 1fr 100px auto", alignItems:"center", gap:14, padding:"14px 18px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+                        onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        
+                        {/* Time */}
+                        <div style={{ textAlign:"center" }}>
+                          <div style={{ fontSize:14, fontWeight:800, color:T.navy }}>{s.scheduled_time?.slice(0,5)}</div>
+                          <div style={{ fontSize:10, color:T.ink3 }}>{s.duration_mins}m</div>
+                        </div>
+
+                        {/* Patient info */}
+                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                          <div style={{ width:40, height:40, borderRadius:"50%", background:patient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", flexShrink:0 }}>
+                            {patient?.initials||"?"}
+                          </div>
+                          <div>
+                            <div style={{ fontSize:14, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+                            <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>
+                              {s.location_text||"No location"}
+                              {s.notes && <span style={{ marginLeft:8, color:"#4338CA" }}>📝 {s.notes}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status */}
+                        <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:sc.bg, color:sc.color, textAlign:"center" }}>
+                          {s.status.replace("_"," ")}
+                        </span>
+
+                        {/* Actions */}
+                        <div style={{ display:"flex", gap:6 }}>
+                          {canStart && (
+                            <button onClick={()=>onStartSession(s.patient_id)}
+                              style={{ padding:"8px 16px", borderRadius:8, border:"none", background:T.green, color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                              ▶ Start
+                            </button>
+                          )}
+                          {canDocument && (
+                            <button onClick={()=>setViewingNote({ ...s, patient_id:s.patient_id })}
+                              style={{ padding:"8px 14px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:12, fontWeight:600, cursor:"pointer", color:T.ink2 }}>
+                              ✏️ Note
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function TodaySchedule({ userId, patients, onStart }) {
   const [sessions, setSessions] = useState([]);
