@@ -245,18 +245,12 @@ function ScheduleFormModal({ patients, rbts, userId, profile, onClose, onSave })
 
         <div style={{ marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Patient *</div>
-          <select value={patientId} onChange={e=>setPatientId(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
-            <option value="">Select patient…</option>
-            {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+            <PatientCombobox patients={patients} value={patientId||"all"} onChange={v=>setPatientId(v==="all"?"":v)} />
         </div>
 
         <div style={{ marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>RBT</div>
-          <select value={rbtId} onChange={e=>setRbtId(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
-            <option value="">Select RBT…</option>
-            {rbts.map(r=><option key={r.id} value={r.id}>{r.full_name}</option>)}
-          </select>
+            <RbtCombobox rbts={rbts} value={rbtId||"all"} onChange={v=>setRbtId(v==="all"?"":v)} />
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
