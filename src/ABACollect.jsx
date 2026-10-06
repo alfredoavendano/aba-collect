@@ -722,13 +722,12 @@ function PermanentProductCard({ prog, sessionActive, onRecord, session, userId }
 }
 
 // ─── Session view ─────────────────────────────────────────────────────────────
-function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], onDocumentSession, currentSession, userId }) {  
-  const typeOrder = ["frequency","duration","interval","rate","latency"];
+function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], onDocumentSession, currentSession, userId, patients=[] }) {  const typeOrder = ["frequency","duration","interval","rate","latency"];
   const sorted = [...programs].sort((a,b)=>typeOrder.indexOf(a.type)-typeOrder.indexOf(b.type));
   return (
     <div>
       <TodaySchedule 
-        userId={user.id} 
+        userId={userId} 
         patients={patients} 
         onStart={(patientId)=>{ setSelectedPatientId(patientId); startSession(); }} 
       />
@@ -1438,8 +1437,7 @@ const endSession = async () => {
 
         {/* Content */}
         <div style={{flex:1,overflowY:"auto",padding:28}}>
-          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id}/>}          {view==="programs"&&<ProgramsView programs={patientPrograms} profile={profile}/>}
-          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
+          {view==="session"&&<SessionView programs={patientPrograms} sessionActive={sessionActive} onRecord={showToast} pendingSessions={pendingSessions} onDocumentSession={s=>{setCompletedSession(s);setShowSessionNote(true);}} currentSession={currentSession} userId={user?.id} patients={patients}/>}          {view==="patients"&&<PatientsView patients={patients} programsByPatient={programsByPatient} selectedId={selectedPatientId} onSelect={id=>{setSelectedPatientId(id);showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}} onSwitch={id=>{setSelectedPatientId(id);setView("session");showToast(`Switched to ${patients.find(p=>p.id===id)?.name}`);}}/>}          {view==="dashboard"&&<DashboardView patient={patient} onDocument={(s)=>{setCompletedSession(s);setShowSessionNote(true);}}/>}
           {view==="reports"&&<ReportsView patient={patient}/>}
         </div>
 
@@ -1581,7 +1579,9 @@ const endSession = async () => {
       </Card>
     </div>
   );
-  function TodaySchedule({ userId, patients, onStart }) {
+}
+
+function TodaySchedule({ userId, patients, onStart }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1630,5 +1630,4 @@ const endSession = async () => {
       })}
     </div>
   );
-}
 }
