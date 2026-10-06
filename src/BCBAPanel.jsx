@@ -333,7 +333,7 @@ function ProgramsTab({ patients, showToast }) {
     setLoading(true);
     const patientIds = patients.map(p=>p.id);
     if(!patientIds.length) { setLoading(false); return; }
-    let query = supabase.from("programs").select("*").eq("status","active").order("created_at");
+    let query = supabase.from("programs").select("*").eq("status","active").order("name");
     if(selectedPatient !== "all") query = query.eq("patient_id", selectedPatient);
     else query = query.in("patient_id", patientIds);
     const { data } = await query;
