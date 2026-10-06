@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import SessionNoteViewer from "./SessionNoteViewer";
+import { logAction } from "./auditLog";
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -108,24 +109,22 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
     showToast("Patient updated ✓"); loadData();
   };
 
-  const assignPatientToBCBA = async (patientId, bcbaId) => {
-    console.log("Assigning BCBA", bcbaId, "to patient", patientId);
-    const { error } = await supabase.from("patients").update({ bcba_id:bcbaId }).eq("id",patientId);
-    console.log("Result:", error);
-    showToast("Patient assigned to BCBA ✓"); loadData();
-  };
+const assignPatientToBCBA = async (patientId, bcbaId) => {
+  await supabase.from("patients").update({ bcba_id:bcbaId }).eq("id",patientId);
+  await logAction({ performedBy:user.id, action:"assign_bcba", entityType:"patient", entityId:patientId, details:{ bcba_id:bcbaId } });
+  showToast("Patient assigned to BCBA ✓"); loadData();
+};
 
-  const assignRBTtoPatient = async (patientId, rbtId) => {
+const assignRBTtoPatient = async (patientId, rbtId) => {
   const existing = assignments.find(a=>a.patient_id===patientId&&a.rbt_id===rbtId);
   if(existing) {
-    // Toggle off — remove this RBT
     await supabase.from("patient_assignments").delete().eq("patient_id",patientId).eq("rbt_id",rbtId);
+    await logAction({ performedBy:user.id, action:"unassign_rbt", entityType:"patient", entityId:patientId, details:{ rbt_id:rbtId } });
     showToast("RBT unassigned");
   } else {
-    // Remove any existing RBT for this patient first
     await supabase.from("patient_assignments").delete().eq("patient_id",patientId);
-    // Then assign the new one
     await supabase.from("patient_assignments").insert({ patient_id:patientId, rbt_id:rbtId });
+    await logAction({ performedBy:user.id, action:"assign_rbt", entityType:"patient", entityId:patientId, details:{ rbt_id:rbtId } });
     showToast("RBT assigned ✓");
   }
   loadData();
@@ -140,6 +139,7 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
     {id:"rbts",     label:"RBTs",            icon:"👥"},
     {id:"programs", label:"Programs",        icon:"🔬"},
     {id:"sessions", label:"All sessions",    icon:"📋"},
+    {id:"audit",    label:"Audit log",       icon:"📝"},
     {id:"users",    label:"User management", icon:"🔐"},
   ];
 
@@ -234,6 +234,8 @@ export default function SuperBCBAPanel({ user, profile, onLogout }) {
             <ProgramsTab patients={patients} showToast={showToast} />
           ) : tab==="sessions" ? (
             <SessionsTab sessions={sessions} patients={patients} bcbas={bcbas} rbts={rbts} fmtHMS={fmtHMS} />
+            ) : tab==="audit" ? (
+            <AuditTab userId={user.id} patients={patients} />
           ) : tab==="users" ? (
             <UsersTab showToast={showToast} />
           ) : null}
@@ -1026,7 +1028,11 @@ function UsersTab({ showToast }) {
     setUsers(data||[]); setLoading(false);
   };
 
-  const approve = async (id) => { await supabase.from("profiles").update({approved:true}).eq("id",id); showToast("User approved ✓"); loadUsers(); };
+  const approve = async (id) => { 
+  await supabase.from("profiles").update({approved:true}).eq("id",id); 
+  await logAction({ performedBy:user.id, action:"approve_user", entityType:"profile", entityId:id, details:{} });
+  showToast("User approved ✓"); loadUsers(); 
+};
   const reject  = async (id) => { await supabase.from("profiles").update({approved:false}).eq("id",id); showToast("User rejected"); loadUsers(); };
   const changeRole = async (id, role) => {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", id).single();
@@ -1038,6 +1044,7 @@ function UsersTab({ showToast }) {
       }
     }
     await supabase.from("profiles").update({ role }).eq("id", id);
+    await logAction({ performedBy:user.id, action:"change_role", entityType:"profile", entityId:id, details:{ new_role:role } });
     showToast("Role updated ✓"); loadUsers();
   };
 
@@ -1217,4 +1224,88 @@ function EditPatientForm({ patient, onClose, onSave }) {
       </div>
     </div>
   );
+  function AuditTab({ userId, patients }) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterAction, setFilterAction] = useState("all");
+
+  useEffect(() => { loadLogs(); }, []);
+
+  const loadLogs = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("audit_log")
+      .select("*, profiles!performed_by(full_name)")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setLogs(data||[]);
+    setLoading(false);
+  };
+
+  const actionLabels = {
+    assign_rbt:   { label:"RBT assigned",    color:T.navy,   bg:T.navyLt  },
+    unassign_rbt: { label:"RBT unassigned",  color:T.amber,  bg:T.amberLt },
+    assign_bcba:  { label:"BCBA assigned",   color:T.green,  bg:T.greenLt },
+    approve_user: { label:"User approved",   color:T.green,  bg:T.greenLt },
+    change_role:  { label:"Role changed",    color:T.indigo, bg:T.indigoLt},
+  };
+
+  const actions = ["all", ...Object.keys(actionLabels)];
+
+  const filtered = logs.filter(l => {
+    const matchAction = filterAction==="all" || l.action===filterAction;
+    const matchSearch = !search || l.profiles?.full_name?.toLowerCase().includes(search.toLowerCase());
+    return matchAction && matchSearch;
+  });
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <input placeholder="Search by user…" value={search} onChange={e=>setSearch(e.target.value)}
+          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", flex:1, minWidth:180 }} />
+        <select value={filterAction} onChange={e=>setFilterAction(e.target.value)}
+          style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer" }}>
+          {actions.map(a=><option key={a} value={a}>{a==="all"?"All actions":actionLabels[a]?.label||a}</option>)}
+        </select>
+        <button onClick={loadLogs} style={{ padding:"7px 14px", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, cursor:"pointer" }}>↻ Refresh</button>
+        <div style={{ fontSize:12, color:T.ink3 }}>{filtered.length} events</div>
+      </div>
+
+      <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
+        {loading ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>Loading…</div> :
+        filtered.length===0 ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>No events found</div> :
+        filtered.map((log,i)=>{
+          const al = actionLabels[log.action]||{ label:log.action, color:T.ink3, bg:T.bg2 };
+          const patient = log.details?.patient_id ? patients.find(p=>p.id===log.entity_id) : null;
+          return (
+            <div key={log.id}
+              style={{ display:"grid", gridTemplateColumns:"1fr 140px 180px 120px", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+              onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:T.ink }}>{log.profiles?.full_name||"Unknown"}</div>
+                {log.entity_type==="patient" && log.entity_id && (
+                  <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>
+                    Patient: {patients.find(p=>p.id===log.entity_id)?.name||log.entity_id}
+                  </div>
+                )}
+              </div>
+              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:al.bg, color:al.color }}>
+                {al.label}
+              </span>
+              <div style={{ fontSize:11, color:T.ink3 }}>
+                {log.details && Object.entries(log.details).map(([k,v])=>(
+                  <span key={k} style={{ marginRight:8 }}>{k}: {String(v).substring(0,20)}</span>
+                ))}
+              </div>
+              <div style={{ fontSize:11, color:T.ink3 }}>
+                {new Date(log.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})} · {new Date(log.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 }
