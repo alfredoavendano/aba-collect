@@ -1602,8 +1602,8 @@ function TodaySchedule({ userId, patients, onStart }) {
   if(loading || !sessions.length) return null;
 
   return (
-    <div style={{ background:"#EEF2FF", border:"1px solid #6366F130", borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
-      <div style={{ fontSize:14, fontWeight:700, color:"#4338CA", marginBottom:12 }}>
+    <div style={{ background:T.bg2, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
+      <div style={{ fontSize:14, fontWeight:700, color:T.navy, marginBottom:12 }}>
         📅 Today's schedule — {sessions.length} session{sessions.length>1?"s":""}
       </div>
       {sessions.map(s=>{
@@ -1622,7 +1622,7 @@ function TodaySchedule({ userId, patients, onStart }) {
               {s.notes && <div style={{ fontSize:11, color:"#4338CA", marginTop:2 }}>📝 {s.notes}</div>}
             </div>
             <button onClick={()=>onStart(s.patient_id)}
-              style={{ padding:"7px 16px", borderRadius:8, border:"none", background:"#4338CA", color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+              style={{ padding:"7px 16px", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:12, fontWeight:600, cursor:"pointer" }}>
               ▶ Start
             </button>
           </div>
