@@ -371,16 +371,7 @@ function ProgramsTab({ patients, showToast }) {
       {editingProgram && <ProgramFormModal patients={null} patientId={selectedPatient} program={editingProgram} onClose={()=>setEditingProgram(null)} onSave={async d=>{await saveProgram(d);setEditingProgram(null);}} />}
 
       <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
-        <button onClick={()=>setSelectedPatient("all")}
-          style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${selectedPatient==="all"?T.navy:T.border2}`, background:selectedPatient==="all"?T.navyLt:"transparent", color:selectedPatient==="all"?T.navy:T.ink2, fontSize:13, fontWeight:selectedPatient==="all"?700:400, cursor:"pointer" }}>
-          All patients
-        </button>
-        {patients.map(p=>(
-          <button key={p.id} onClick={()=>setSelectedPatient(p.id)}
-            style={{ padding:"8px 16px", borderRadius:8, border:`1px solid ${selectedPatient===p.id?T.navy:T.border2}`, background:selectedPatient===p.id?T.navyLt:"transparent", color:selectedPatient===p.id?T.navy:T.ink2, fontSize:13, fontWeight:selectedPatient===p.id?700:400, cursor:"pointer" }}>
-            {p.initials} · {p.name}
-          </button>
-        ))}
+        <PatientCombobox patients={patients} value={selectedPatient} onChange={setSelectedPatient} />
         <button onClick={()=>setShowForm(true)}
           style={{ padding:"8px 16px", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer", marginLeft:"auto" }}>
           + New program
