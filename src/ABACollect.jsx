@@ -1189,10 +1189,10 @@ setPendingStart(false);
 }, [pendingStart, selectedPatientId]);
 
 useEffect(() => {
-  if(!loading) {
+  if(!loading && pendingSessions !== undefined) {
     setView(pendingSessions.length > 0 ? "todo" : "schedule");
   }
-}, [loading]);
+}, [loading, pendingSessions.length]);
 
   const loadData = async () => {
     setLoading(true);
