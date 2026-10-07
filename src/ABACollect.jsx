@@ -1469,7 +1469,6 @@ const endSession = async () => {
             ) : (
               <span style={{display:"inline-flex",alignItems:"center",gap:6,background:T.bg2,color:T.ink3,fontSize:12,fontWeight:600,padding:"6px 14px",borderRadius:99}}>Ready</span>
             )}
-            <Btn onClick={()=>setView("dashboard")} style={{padding:"8px 16px"}}>📊 BCBA view</Btn>
           </div>
         </div>
 
