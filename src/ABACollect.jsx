@@ -878,6 +878,7 @@ function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [localPatientId, setLocalPatientId] = useState(patient?.id||"");
+  const localPatient = patients.find(p=>p.id===localPatientId) || patient;
 
 useEffect(() => {
   if (!localPatientId) return;
@@ -897,7 +898,7 @@ useEffect(() => {
     const { data: progData } = await supabase
       .from('programs')
       .select('*')
-      .eq('patient_id', patient.id)
+      .eq('patient_id', localPatientId)
       .eq('status', 'active');
 
     let dpData = [];
@@ -1032,10 +1033,10 @@ useEffect(() => {
 
       {/* Patient header */}
       <Card style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20, padding:"16px 20px" }}>
-        <div style={{ width:52, height:52, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
+        <div style={{ width:52, height:52, borderRadius:"50%", background:localPatient?.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, color:"#fff" }}>{localPatient?.initials}</div>
         <div>
-          <div style={{ fontSize:18, fontWeight:700 }}>{patient.name}</div>
-          <div style={{ fontSize:13, color:T.ink3, marginTop:2 }}>Age {age(patient.dob)} · {patient.diagnosis} · BCBA: {patient.bcba}</div>
+          <div style={{ fontSize:18, fontWeight:700 }}>{localPatient?.name}</div>
+          <div style={{ fontSize:13, color:T.ink3, marginTop:2 }}>Age {age(localPatient?.dob)} · {localPatient?.diagnosis} · BCBA: {localPatient?.bcba}</div>
         </div>
       </Card>
 
@@ -1549,8 +1550,8 @@ const endSession = async () => {
     if (!patient) return;
     setLoading(true);
     Promise.all([
-      supabase.from("sessions").select("*").eq("patient_id", patient.id).order("started_at", {ascending:false}),
-      supabase.from("programs").select("*").eq("patient_id", patient.id).eq("status","active"),
+      supabase.from("sessions").select("*").eq("patient_id", localPatientId).order("started_at", {ascending:false}),
+      supabase.from("programs").select("*").eq("patient_id", localPatientId).eq("status","active"),
     ]).then(([s, p]) => {
       setSessions(s.data||[]);
       setPrograms(p.data||[]);
