@@ -875,12 +875,14 @@ function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
   const [loading, setLoading] = useState(true);
   const [viewingNote, setViewingNote] = useState(null);
   const [rangeFilter, setRangeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedProgram, setSelectedProgram] = useState(null);
+  const [localPatientId, setLocalPatientId] = useState(patient?.id||"");
 
-  useEffect(() => {
-    if (!patient) return;
-    loadDashboard();
-  }, [patient]);
+useEffect(() => {
+  if (!localPatientId) return;
+  loadDashboard();
+}, [localPatientId]);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -888,7 +890,7 @@ function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
     const { data: sessionData } = await supabase
       .from('sessions')
       .select('*')
-      .eq('patient_id', patient.id)
+      .eq('patient_id', localPatientId)
       .is('deleted_at', null)
       .order('started_at', { ascending: true });
 
@@ -1018,10 +1020,10 @@ function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
       )}
 
       {/* Patient selector */}
-      {patients.length > 1 && onSelectPatient && (
+      {patients.length > 1 && (
         <div style={{ marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
           <div style={{ fontSize:13, fontWeight:600, color:T.ink3 }}>Patient:</div>
-          <select value={patient?.id||""} onChange={e=>onSelectPatient(e.target.value)}
+          <select value={localPatientId||patient?.id||""} onChange={e=>setLocalPatientId(e.target.value)}
             style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer", flex:1, maxWidth:300 }}>
             {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -1071,24 +1073,31 @@ function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
 
       {/* Session log */}
       <div style={{ marginTop:14 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-          <div style={{ fontSize:15, fontWeight:700 }}>Session history</div>
-          <div style={{ display:"flex", gap:6 }}>
-            {["all","week","month","3months"].map(r=>(
-              <button key={r} onClick={()=>setRangeFilter(r)}
-                style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
-                {r==="all"?"All":r==="week"?"7 days":r==="month"?"30 days":"3 months"}
-              </button>
-            ))}
-          </div>
-        </div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
+      <div style={{ fontSize:15, fontWeight:700 }}>Session history</div>
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+        {["all","week","month","3months"].map(r=>(
+          <button key={r} onClick={()=>setRangeFilter(r)}
+            style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
+            {r==="all"?"All":r==="week"?"7 days":r==="month"?"30 days":"3 months"}
+          </button>
+        ))}
+        <div style={{ width:1, background:T.border2, margin:"0 4px" }}/>
+        {["all","pending","documented"].map(s=>(
+          <button key={s} onClick={()=>setStatusFilter(s)}
+            style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${statusFilter===s?(s==="documented"?T.green:s==="pending"?T.amber:T.navy):T.border2}`, background:statusFilter===s?(s==="documented"?T.greenLt:s==="pending"?T.amberLt:T.navy):T.white, color:statusFilter===s?(s==="documented"?T.green:s==="pending"?T.amber:"#fff"):T.ink3, cursor:"pointer", fontWeight:statusFilter===s?700:400 }}>
+            {s==="all"?"All":s==="pending"?"⏳ Pending":"✓ Documented"}
+          </button>
+        ))}
+      </div>
+    </div>
 
         <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
           {sessions.slice().reverse().filter(s=>{
-            if(rangeFilter==="all") return true;
-            const days = rangeFilter==="week"?7:rangeFilter==="month"?30:90;
-            return (Date.now()-new Date(s.started_at))/(1000*3600*24) <= days;
-          }).slice(0,20).map((s,i,arr)=>(
+              const matchRange = rangeFilter==="all" || (Date.now()-new Date(s.started_at))/(1000*3600*24) <= (rangeFilter==="week"?7:rangeFilter==="month"?30:90);
+              const matchStatus = statusFilter==="all" || s.documentation_status===statusFilter;
+              return matchRange && matchStatus;
+            }).slice(0,20).map((s,i,arr)=>(
             <div key={s.id}
               style={{ display:"flex", alignItems:"center", gap:14, padding:"11px 16px", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none", transition:"background .12s", cursor:"default" }}
               onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
