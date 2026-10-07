@@ -594,7 +594,7 @@ function ScheduleTab({ userId, patients, rbts, profile }) {
                   const sc = statusColors[s.status]||{ bg:T.bg2, color:T.ink3 };
                   return (
                     <div key={s.id}
-                      style={{ display:"grid", gridTemplateColumns:"44px 1fr 120px 100px 100px auto", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+                      style={{ display:"grid", gridTemplateColumns:"60px 1fr 120px 120px auto", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
                       onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                       <div style={{ textAlign:"center" }}>
@@ -639,61 +639,181 @@ function ScheduleTab({ userId, patients, rbts, profile }) {
 function ScheduleFormModal({ patients, rbts, userId, profile, onClose, onSave }) {
   const [patientId, setPatientId] = useState("");
   const [rbtId, setRbtId] = useState("");
+  const [sessionType, setSessionType] = useState("single"); // single | recurring
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split("T")[0]);
+  const [dateTo, setDateTo] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth()+1);
+    return d.toISOString().split("T")[0];
+  });
   const [time, setTime] = useState("09:00");
   const [duration, setDuration] = useState(60);
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
+  const [recurrence, setRecurrence] = useState("weekly");
+  const [selectedDays, setSelectedDays] = useState([1,3,5]); // Mon, Wed, Fri
   const [saving, setSaving] = useState(false);
+  const [previewCount, setPreviewCount] = useState(0);
 
   const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13, border:`1px solid ${T.border2}`, background:T.white, outline:"none", color:T.ink, fontFamily:"inherit" };
+  const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const RECURRENCE = { weekly:1, biweekly:2, triweekly:3, monthly:4 };
+
+  // Generate dates for recurring sessions
+  const generateDates = () => {
+    const dates = [];
+    const from = new Date(dateFrom+"T12:00:00");
+    const to = new Date(dateTo+"T12:00:00");
+    const step = RECURRENCE[recurrence] || 1;
+    let current = new Date(from);
+    while(current <= to) {
+      if(selectedDays.includes(current.getDay())) {
+        dates.push(current.toISOString().split("T")[0]);
+      }
+      current.setDate(current.getDate()+1);
+      // Skip weeks based on recurrence
+      if(step > 1 && current.getDay() === from.getDay() && !selectedDays.includes(current.getDay())) {
+        current.setDate(current.getDate()+(step-1)*7);
+      }
+    }
+    return dates;
+  };
+
+  useEffect(() => {
+    if(sessionType==="recurring") {
+      setPreviewCount(generateDates().length);
+    }
+  }, [sessionType, dateFrom, dateTo, selectedDays, recurrence]);
+
+  const toggleDay = (day) => {
+    setSelectedDays(prev => prev.includes(day) ? prev.filter(d=>d!==day) : [...prev, day].sort());
+  };
 
   const handleSave = async () => {
-    if(!patientId || !date || !time) return;
+    if(!patientId || !time) return;
+    if(sessionType==="single" && !date) return;
+    if(sessionType==="recurring" && (!dateFrom||!dateTo||!selectedDays.length)) return;
     setSaving(true);
-    const patient = patients.find(p=>p.id===patientId);
-    await supabase.from("scheduled_sessions").insert({
+
+    const base = {
       patient_id: patientId,
       rbt_id: rbtId||null,
       bcba_id: userId,
-      scheduled_date: date,
       scheduled_time: time,
       duration_mins: parseInt(duration)||60,
       location_text: location||null,
       notes: notes||null,
       status: "scheduled",
       organization_id: profile?.organization_id||null,
-    });
+    };
+
+    if(sessionType==="single") {
+      await supabase.from("scheduled_sessions").insert({ ...base, scheduled_date: date });
+    } else {
+      const dates = generateDates();
+      if(dates.length > 0) {
+        const rows = dates.map(d => ({ ...base, scheduled_date: d }));
+        await supabase.from("scheduled_sessions").insert(rows);
+      }
+    }
     setSaving(false);
     onSave();
   };
 
+  const canSave = patientId && time && (sessionType==="single" ? date : (dateFrom && dateTo && selectedDays.length > 0));
+
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
-      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(500px, calc(100vw - 32px))", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(560px, calc(100vw - 32px))", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
         <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>Schedule session</div>
 
+        {/* Patient & RBT */}
         <div style={{ marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Patient *</div>
-            <PatientCombobox patients={patients} value={patientId||"all"} onChange={v=>setPatientId(v==="all"?"":v)} />
+          <PatientCombobox patients={patients} value={patientId||"all"} onChange={v=>setPatientId(v==="all"?"":v)} />
         </div>
-
         <div style={{ marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>RBT</div>
-            <RbtCombobox rbts={rbts} value={rbtId||"all"} onChange={v=>setRbtId(v==="all"?"":v)} />
+          <RbtCombobox rbts={rbts} value={rbtId||"all"} onChange={v=>setRbtId(v==="all"?"":v)} />
         </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Date *</div>
-            <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inputStyle} />
-          </div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Time *</div>
-            <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={inputStyle} />
+        {/* Session type toggle */}
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Session type</div>
+          <div style={{ display:"flex", gap:8 }}>
+            {["single","recurring"].map(t=>(
+              <button key={t} onClick={()=>setSessionType(t)}
+                style={{ flex:1, padding:"9px 0", borderRadius:8, border:`1px solid ${sessionType===t?T.navy:T.border2}`, background:sessionType===t?T.navy:T.white, color:sessionType===t?"#fff":T.ink2, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                {t==="single"?"📅 Single session":"🔁 Recurring"}
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* Date fields */}
+        {sessionType==="single" ? (
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Date *</div>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Time *</div>
+              <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>From *</div>
+                <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>To *</div>
+                <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Time *</div>
+                <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={inputStyle} />
+              </div>
+            </div>
+
+            {/* Days of week */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Days of week *</div>
+              <div style={{ display:"flex", gap:6 }}>
+                {DAYS.map((day,i)=>(
+                  <button key={i} onClick={()=>toggleDay(i)}
+                    style={{ flex:1, padding:"7px 0", borderRadius:7, border:`1px solid ${selectedDays.includes(i)?T.navy:T.border2}`, background:selectedDays.includes(i)?T.navy:T.white, color:selectedDays.includes(i)?"#fff":T.ink3, fontSize:11, fontWeight:selectedDays.includes(i)?700:400, cursor:"pointer" }}>
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Recurrence */}
+            <div style={{ marginBottom:8 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:8 }}>Recurrence</div>
+              <div style={{ display:"flex", gap:6 }}>
+                {[["weekly","Every week"],["biweekly","Every 2 weeks"],["triweekly","Every 3 weeks"],["monthly","Monthly"]].map(([val,label])=>(
+                  <button key={val} onClick={()=>setRecurrence(val)}
+                    style={{ flex:1, padding:"7px 0", borderRadius:7, border:`1px solid ${recurrence===val?T.green:T.border2}`, background:recurrence===val?T.greenLt:T.white, color:recurrence===val?T.green:T.ink3, fontSize:11, fontWeight:recurrence===val?700:400, cursor:"pointer" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {previewCount > 0 && (
+              <div style={{ fontSize:12, color:T.green, fontWeight:600, padding:"8px 12px", background:T.greenLt, borderRadius:8, marginTop:8 }}>
+                ✓ This will create {previewCount} session{previewCount!==1?"s":""}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Duration & Location */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
           <div>
             <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Duration (minutes)</div>
@@ -707,6 +827,7 @@ function ScheduleFormModal({ patients, rbts, userId, profile, onClose, onSave })
           </div>
         </div>
 
+        {/* Notes */}
         <div style={{ marginBottom:24 }}>
           <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Notes for RBT</div>
           <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={3}
@@ -716,9 +837,9 @@ function ScheduleFormModal({ patients, rbts, userId, profile, onClose, onSave })
 
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
-          <button onClick={handleSave} disabled={!patientId||!date||!time||saving}
-            style={{ flex:2, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:saving?"not-allowed":"pointer", opacity:saving?.7:1 }}>
-            {saving?"Scheduling…":"Schedule session"}
+          <button onClick={handleSave} disabled={!canSave||saving}
+            style={{ flex:2, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:(!canSave||saving)?"not-allowed":"pointer", opacity:(!canSave||saving)?.7:1 }}>
+            {saving?"Scheduling…":sessionType==="recurring"?`Schedule ${previewCount} sessions`:"Schedule session"}
           </button>
         </div>
       </div>
