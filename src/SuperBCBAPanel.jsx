@@ -137,6 +137,7 @@ const assignRBTtoPatient = async (patientId, rbtId) => {
     {id:"patients", label:"All patients",    icon:"👤"},
     {id:"bcbas",    label:"BCBAs",           icon:"🧠"},
     {id:"rbts",     label:"RBTs",            icon:"👥"},
+    {id:"schedule", label:"Schedule",        icon:"📅"},
     {id:"programs", label:"Programs",        icon:"🔬"},
     {id:"sessions", label:"All sessions",    icon:"📋"},
     {id:"audit",    label:"Audit log",       icon:"📝"},
@@ -230,6 +231,8 @@ const assignRBTtoPatient = async (patientId, rbtId) => {
             <BCBAsTab bcbas={bcbas} patients={patients} />
           ) : tab==="rbts" ? (
             <RBTsTab rbts={rbts} assignments={assignments} patients={patients} />
+          ) : tab==="schedule" ? (
+            <ScheduleTab userId={user.id} patients={patients} rbts={rbts} profile={profile} />
           ) : tab==="programs" ? (
             <ProgramsTab patients={patients} showToast={showToast} />
           ) : tab==="sessions" ? (
@@ -479,6 +482,250 @@ function RBTsTab({ rbts, assignments, patients }) {
     </div>
   );
 }
+
+function ScheduleTab({ userId, patients, rbts, profile }) {
+  const [scheduled, setScheduled] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [rangeFilter, setRangeFilter] = useState("week");
+  const [filterPatient, setFilterPatient] = useState("all");
+
+  useEffect(() => { loadScheduled(); }, [rangeFilter]);
+
+  const loadScheduled = async () => {
+    setLoading(true);
+    const today = new Date();
+    const days = rangeFilter==="today"?0:rangeFilter==="week"?7:30;
+    const from = new Date(today); from.setHours(0,0,0,0);
+    const to = new Date(today); to.setDate(to.getDate()+days); to.setHours(23,59,59,999);
+
+    const patientIds = patients.map(p=>p.id);
+    if(!patientIds.length){ setLoading(false); return; }
+
+    let query = supabase.from("scheduled_sessions")
+      .select("*")
+      .in("patient_id", patientIds)
+      .gte("scheduled_date", from.toISOString().split("T")[0])
+      .lte("scheduled_date", to.toISOString().split("T")[0])
+      .order("scheduled_date").order("scheduled_time");
+
+    const { data } = await query;
+    setScheduled(data||[]);
+    setLoading(false);
+  };
+
+  const cancelSession = async (id) => {
+    if(!window.confirm("Cancel this scheduled session?")) return;
+    await supabase.from("scheduled_sessions").update({ status:"cancelled" }).eq("id",id);
+    loadScheduled();
+  };
+
+  const filtered = scheduled.filter(s =>
+    filterPatient==="all" || s.patient_id===filterPatient
+  );
+
+  const statusColors = {
+    scheduled:   { bg:"#EEF2FF", color:"#4338CA" },
+    in_progress: { bg:T.greenLt, color:T.green },
+    completed:   { bg:T.greenLt, color:T.green },
+    cancelled:   { bg:T.redLt,   color:T.red },
+    no_show:     { bg:T.amberLt, color:T.amber },
+  };
+
+  const groupByDate = (sessions) => {
+    const groups = {};
+    sessions.forEach(s => {
+      if(!groups[s.scheduled_date]) groups[s.scheduled_date] = [];
+      groups[s.scheduled_date].push(s);
+    });
+    return groups;
+  };
+
+  const groups = groupByDate(filtered);
+
+  return (
+    <div>
+      {showForm && (
+        <ScheduleFormModal
+          patients={patients} rbts={rbts} userId={userId} profile={profile}
+          onClose={()=>setShowForm(false)}
+          onSave={async()=>{ setShowForm(false); loadScheduled(); }}
+        />
+      )}
+
+      <div style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
+        <PatientCombobox patients={patients} value={filterPatient} onChange={setFilterPatient} />
+        <div style={{ display:"flex", gap:6 }}>
+          {["today","week","month"].map(r=>(
+            <button key={r} onClick={()=>setRangeFilter(r)}
+              style={{ fontSize:11, padding:"5px 10px", borderRadius:6, border:`1px solid ${rangeFilter===r?T.navy:T.border2}`, background:rangeFilter===r?T.navy:T.white, color:rangeFilter===r?"#fff":T.ink3, cursor:"pointer", fontWeight:rangeFilter===r?700:400 }}>
+              {r==="today"?"Today":r==="week"?"This week":"This month"}
+            </button>
+          ))}
+        </div>
+        <button onClick={()=>setShowForm(true)}
+          style={{ padding:"8px 16px", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer", marginLeft:"auto" }}>
+          + Schedule session
+        </button>
+      </div>
+
+      {loading ? <div style={{ textAlign:"center", padding:40, color:T.ink3 }}>Loading…</div> :
+      Object.keys(groups).length===0 ? (
+        <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
+          <div style={{ fontSize:18, fontWeight:700, color:T.ink2, marginBottom:6 }}>No sessions scheduled</div>
+          <div style={{ fontSize:13, marginBottom:20 }}>Schedule sessions for your patients and RBTs</div>
+          <button onClick={()=>setShowForm(true)}
+            style={{ padding:"10px 20px", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+            + Schedule session
+          </button>
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          {Object.entries(groups).map(([date, sessions])=>(
+            <div key={date}>
+              <div style={{ fontSize:13, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:8 }}>
+                {new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
+              </div>
+              <div style={{ background:T.white, border:`1px solid ${T.border}`, borderRadius:12, overflow:"hidden" }}>
+                {sessions.map((s,i)=>{
+                  const patient = patients.find(p=>p.id===s.patient_id);
+                  const rbt = rbts.find(r=>r.id===s.rbt_id);
+                  const sc = statusColors[s.status]||{ bg:T.bg2, color:T.ink3 };
+                  return (
+                    <div key={s.id}
+                      style={{ display:"grid", gridTemplateColumns:"44px 1fr 120px 100px 100px auto", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+                      onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <div style={{ textAlign:"center" }}>
+                        <div style={{ fontSize:13, fontWeight:800, color:T.navy }}>{s.scheduled_time?.slice(0,5)}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
+                        <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>
+                          {s.duration_mins} min · {s.location_text||"No location"}
+                          {s.notes && <span style={{ marginLeft:8 }}>· {s.notes}</span>}
+                        </div>
+                      </div>
+                      <div>
+                        {rbt && <span style={{ fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:99, background:T.navyLt, color:T.navy }}>{rbt.full_name}</span>}
+                      </div>
+                      <div style={{ fontSize:11, fontWeight:600 }}>
+                        {s.duration_mins} min
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:99, background:sc.bg, color:sc.color }}>
+                        {s.status.replace("_"," ")}
+                      </span>
+                      <div style={{ display:"flex", gap:6 }}>
+                        {s.status==="scheduled" && (
+                          <button onClick={()=>cancelSession(s.id)}
+                            style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.red}30`, background:T.redLt, color:T.red, cursor:"pointer", fontWeight:600 }}>
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScheduleFormModal({ patients, rbts, userId, profile, onClose, onSave }) {
+  const [patientId, setPatientId] = useState("");
+  const [rbtId, setRbtId] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [time, setTime] = useState("09:00");
+  const [duration, setDuration] = useState(60);
+  const [location, setLocation] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:8, fontSize:13, border:`1px solid ${T.border2}`, background:T.white, outline:"none", color:T.ink, fontFamily:"inherit" };
+
+  const handleSave = async () => {
+    if(!patientId || !date || !time) return;
+    setSaving(true);
+    const patient = patients.find(p=>p.id===patientId);
+    await supabase.from("scheduled_sessions").insert({
+      patient_id: patientId,
+      rbt_id: rbtId||null,
+      bcba_id: userId,
+      scheduled_date: date,
+      scheduled_time: time,
+      duration_mins: parseInt(duration)||60,
+      location_text: location||null,
+      notes: notes||null,
+      status: "scheduled",
+      organization_id: profile?.organization_id||null,
+    });
+    setSaving(false);
+    onSave();
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+      <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(500px, calc(100vw - 32px))", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+        <div style={{ fontSize:18, fontWeight:800, color:T.ink, marginBottom:24 }}>Schedule session</div>
+
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Patient *</div>
+            <PatientCombobox patients={patients} value={patientId||"all"} onChange={v=>setPatientId(v==="all"?"":v)} />
+        </div>
+
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>RBT</div>
+            <RbtCombobox rbts={rbts} value={rbtId||"all"} onChange={v=>setRbtId(v==="all"?"":v)} />
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Date *</div>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Time *</div>
+            <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Duration (minutes)</div>
+            <select value={duration} onChange={e=>setDuration(e.target.value)} style={{ ...inputStyle, cursor:"pointer" }}>
+              {[30,45,60,90,120,180].map(d=><option key={d} value={d}>{d} min</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Location</div>
+            <input value={location} onChange={e=>setLocation(e.target.value)} style={inputStyle} placeholder="e.g. Center, Home, School" />
+          </div>
+        </div>
+
+        <div style={{ marginBottom:24 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:T.ink3, marginBottom:6 }}>Notes for RBT</div>
+          <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={3}
+            placeholder="Instructions, goals, reminders…"
+            style={{ ...inputStyle, resize:"vertical", lineHeight:1.5 }} />
+        </div>
+
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+          <button onClick={handleSave} disabled={!patientId||!date||!time||saving}
+            style={{ flex:2, padding:"10px 0", borderRadius:8, border:"none", background:T.navy, color:"#fff", fontSize:13, fontWeight:600, cursor:saving?"not-allowed":"pointer", opacity:saving?.7:1 }}>
+            {saving?"Scheduling…":"Schedule session"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function PatientCombobox({ patients, value, onChange }) {
   const [search, setSearch] = useState("");
