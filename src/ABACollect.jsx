@@ -726,24 +726,7 @@ function SessionView({ programs, sessionActive, onRecord, pendingSessions=[], on
   const sorted = [...programs].sort((a,b)=>typeOrder.indexOf(a.type)-typeOrder.indexOf(b.type));
   return (
     <div>
-      {pendingSessions.length>0 && (
-        <div style={{ background:T.bg2, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
-          <div style={{ fontSize:14, fontWeight:700, color:T.amber, marginBottom:10 }}>
-            {pendingSessions.length} session{pendingSessions.length>1?"s":""} pending documentation
-          </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {pendingSessions.map(s=>(
-              <div key={s.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff", borderRadius:8, padding:"10px 14px" }}>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString()} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
-                  <div style={{ fontSize:11, color:T.ink3, marginTop:2 }}>Duration: {fmtHMS(s.duration_secs||0)}</div>
-                </div>
-                <Btn onClick={()=>onDocumentSession(s)} variant="primary" style={{ padding:"7px 14px" }}>Document</Btn>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {!sessionActive && (
         <div style={{ background:T.amberLt, border:`1px solid ${T.amberMd}40`, borderRadius:10, padding:"12px 16px", marginBottom:20, fontSize:13, color:T.amber, fontWeight:600 }}>
@@ -885,13 +868,14 @@ function ChartCard({ title, color, data, labels, targetVal, targetLabel, suffix=
 }
 
 // ─── Dashboard view ───────────────────────────────────────────────────────────
-function DashboardView({ patient, onDocument }) {
+function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
   const [sessions, setSessions] = useState([]);
   const [dataPoints, setDataPoints] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingNote, setViewingNote] = useState(null);
   const [rangeFilter, setRangeFilter] = useState("all");
+  const [selectedProgram, setSelectedProgram] = useState(null);
 
   useEffect(() => {
     if (!patient) return;
@@ -980,6 +964,49 @@ function DashboardView({ patient, onDocument }) {
 
     return (
     <div>
+      {selectedProgram && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+          <div style={{ background:T.white, borderRadius:16, padding:32, width:"min(520px, calc(100vw - 32px))", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+              <div>
+                <div style={{ fontSize:18, fontWeight:800, color:T.ink }}>{selectedProgram.name}</div>
+                <div style={{ fontSize:12, color:T.ink3, marginTop:4 }}>{selectedProgram.type?.replace(/_/g," ").replace(/\w/g,c=>c.toUpperCase())}</div>
+              </div>
+              <button onClick={()=>setSelectedProgram(null)} style={{ fontSize:22, background:"none", border:"none", cursor:"pointer", color:T.ink3 }}>✕</button>
+            </div>
+            {selectedProgram.description && (
+              <div style={{ fontSize:13, color:T.ink2, lineHeight:1.6, marginBottom:16, padding:"12px 14px", background:T.bg2, borderRadius:8 }}>
+                {selectedProgram.description}
+              </div>
+            )}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+              {selectedProgram.target && (
+                <div style={{ padding:"12px 14px", background:T.bg2, borderRadius:8 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Target</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:T.ink }}>{selectedProgram.target}</div>
+                </div>
+              )}
+              {selectedProgram.direction && (
+                <div style={{ padding:"12px 14px", background:T.bg2, borderRadius:8 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Direction</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:T.ink, textTransform:"capitalize" }}>{selectedProgram.direction}</div>
+                </div>
+              )}
+            </div>
+            {selectedProgram.interval_secs && (
+              <div style={{ padding:"12px 14px", background:T.bg2, borderRadius:8, marginBottom:16 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:4 }}>Interval settings</div>
+                <div style={{ fontSize:13, color:T.ink2 }}>{selectedProgram.interval_secs}s intervals · {selectedProgram.total_intervals} total</div>
+              </div>
+            )}
+            <button onClick={()=>setSelectedProgram(null)}
+              style={{ width:"100%", padding:"10px 0", borderRadius:8, border:`1px solid ${T.border2}`, background:T.white, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {viewingNote && (
         <SessionNoteViewer
           session={viewingNote}
@@ -988,6 +1015,17 @@ function DashboardView({ patient, onDocument }) {
           userId={patient.rbt_id}
           onClose={()=>setViewingNote(null)}
         />
+      )}
+
+      {/* Patient selector */}
+      {patients.length > 1 && onSelectPatient && (
+        <div style={{ marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:T.ink3 }}>Patient:</div>
+          <select value={patient?.id||""} onChange={e=>onSelectPatient(e.target.value)}
+            style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer", flex:1, maxWidth:300 }}>
+            {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
       )}
 
       {/* Patient header */}
@@ -1016,16 +1054,17 @@ function DashboardView({ patient, onDocument }) {
           const ep = enrichProg(prog);
           const suffix = prog.type==='rate' ? '%' : prog.type==='duration' ? 's' : '';
           return (
-            <ChartCard
-              key={prog.id}
-              title={prog.name}
-              color={ep.color}
-              data={series.map(d=>d.value)}
-              labels={series.map(d=>d.date)}
-              targetVal={prog.target_val || 0}
-              targetLabel={prog.target || ""}
-              suffix={suffix}
-            />
+            <div key={prog.id} onClick={()=>setSelectedProgram(prog)} style={{ cursor:"pointer" }}>
+              <ChartCard
+                title={prog.name}
+                color={ep.color}
+                data={series.map(d=>d.value)}
+                labels={series.map(d=>d.date)}
+                targetVal={prog.target_val || 0}
+                targetLabel={prog.target || ""}
+                suffix={suffix}
+              />
+            </div>
           );
         })}
       </div>
