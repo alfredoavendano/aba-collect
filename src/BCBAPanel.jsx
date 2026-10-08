@@ -164,7 +164,7 @@ function ScheduleTab({ userId, patients, rbts, profile }) {
                   const sc = statusColors[s.status]||{ bg:T.bg2, color:T.ink3 };
                   return (
                     <div key={s.id}
-                      style={{ display:"grid", gridTemplateColumns:"60px 1fr 120px 120px auto", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+                      style={{ display:"grid", gridTemplateColumns:"60px 1fr 120px 120px 100px", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
                       onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                       <div style={{ textAlign:"center" }}>
