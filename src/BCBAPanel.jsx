@@ -164,29 +164,27 @@ function ScheduleTab({ userId, patients, rbts, profile }) {
                   const sc = statusColors[s.status]||{ bg:T.bg2, color:T.ink3 };
                   return (
                     <div key={s.id}
-                      style={{ display:"grid", gridTemplateColumns:"60px 1fr 120px 120px 100px", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
+                      style={{ display:"grid", gridTemplateColumns:"60px 1fr 120px 110px 90px", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none", transition:"background .12s" }}
                       onMouseEnter={e=>e.currentTarget.style.background=T.bg2}
                       onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                       <div style={{ textAlign:"center" }}>
                         <div style={{ fontSize:13, fontWeight:800, color:T.navy }}>{s.scheduled_time?.slice(0,5)}</div>
+                        <div style={{ fontSize:10, color:T.ink3 }}>{s.duration_mins}m</div>
                       </div>
                       <div>
                         <div style={{ fontSize:13, fontWeight:700 }}>{patient?.name||"Unknown"}</div>
                         <div style={{ fontSize:11, color:T.ink3, marginTop:1 }}>
-                          {s.duration_mins} min · {s.location_text||"No location"}
+                          {s.location_text||"No location"}
                           {s.notes && <span style={{ marginLeft:8 }}>· {s.notes}</span>}
                         </div>
                       </div>
                       <div>
                         {rbt && <span style={{ fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:99, background:T.navyLt, color:T.navy }}>{rbt.full_name}</span>}
                       </div>
-                      <div style={{ fontSize:11, fontWeight:600 }}>
-                        {s.duration_mins} min
-                      </div>
                       <span style={{ fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:99, background:sc.bg, color:sc.color }}>
                         {s.status.replace("_"," ")}
                       </span>
-                      <div style={{ display:"flex", gap:6 }}>
+                      <div style={{ display:"flex", justifyContent:"flex-end" }}>
                         {s.status==="scheduled" && (
                           <button onClick={()=>cancelSession(s.id)}
                             style={{ fontSize:11, padding:"4px 10px", borderRadius:6, border:`1px solid ${T.red}30`, background:T.redLt, color:T.red, cursor:"pointer", fontWeight:600 }}>
