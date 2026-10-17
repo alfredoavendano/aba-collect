@@ -564,7 +564,7 @@ const NAV = [
           ) : tab==="templates" ? (
             <TemplateManager user={user} patients={patients} showToast={showToast} />
           ) : tab==="dashboard" ? (
-            <BCBADashboardView patient={dashboardPatient} onBack={()=>{ console.log("onBack called"); setTab("patients"); }} />
+            <BCBADashboardView patient={dashboardPatient} patients={patients} onSelectPatient={setDashboardPatient} onBack={()=>setTab("patients")} />
           ) : (
             <SessionsTab userId={user.id} patients={patients} rbts={rbts} />
           )}
@@ -1322,32 +1322,51 @@ function EditPatientForm({ patient, onClose, onSave }) {
   );
 }
 
-function BCBADashboardView({ patient, onBack }) {
+function BCBADashboardView({ patient: selectedPatient, patients = [], onSelectPatient, onBack }) {
+  // Same behaviour as the RBT dashboard: a patient selector, defaulting to the first patient.
+  const patient = selectedPatient || patients[0] || null;
   const [sessions, setSessions] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!patient) return;
+    if (!patient) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
-      supabase.from("sessions").select("*").eq("patient_id", patient.id).order("started_at", {ascending:false}),
+      supabase.from("sessions").select("*").eq("patient_id", patient.id).is("deleted_at", null).order("started_at", {ascending:false}),
       supabase.from("programs").select("*").eq("patient_id", patient.id).eq("status","active"),
     ]).then(([s, p]) => {
       setSessions(s.data||[]);
       setPrograms(p.data||[]);
       setLoading(false);
     });
-  }, [patient]);
+  }, [patient?.id]);
 
   const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
   const documented = sessions.filter(s=>s.documentation_status==="documented").length;
   const avgDuration = sessions.length ? Math.round(sessions.reduce((a,s)=>a+(s.duration_secs||0),0)/sessions.length) : 0;
 
-  if(loading) return <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div>;
+  if(!patient) return (
+    <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
+      No patients yet. Add a patient in “My patients” to see their dashboard.
+    </div>
+  );
+
+  const patientSelector = patients.length > 1 && (
+    <div style={{ marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
+      <div style={{ fontSize:13, fontWeight:600, color:T.ink3 }}>Patient:</div>
+      <select value={patient.id} onChange={e=>onSelectPatient?.(patients.find(p=>p.id===e.target.value)||null)}
+        style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer", flex:1, maxWidth:300 }}>
+        {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+    </div>
+  );
+
+  if(loading) return <div>{patientSelector}<div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div></div>;
 
   return (
     <div>
+      {patientSelector}
       <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ width:44, height:44, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
