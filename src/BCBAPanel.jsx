@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import TemplateManager from "./TemplateManager";
 import { generateSessionReport } from "./ReportGenerator";
 import SessionNoteViewer from "./SessionNoteViewer";
+import { DashboardView } from "./ABACollect";
 
 const T = {
   navy:"#0F2744",navyLt:"#E8EEF5",navyMd:"#1A3D6B",
@@ -541,7 +542,7 @@ const NAV = [
         <div style={{ padding:"16px 28px", borderBottom:`1px solid ${T.border}`, background:T.white, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           <div>
             <div style={{ fontSize:20, fontWeight:800, color:T.ink, letterSpacing:"-.5px" }}>
-              {tab==="patients"?"My patients":tab==="programs"?"Programs":tab==="rbts"?"My RBTs":tab==="templates"?"Templates":tab==="schedule"?"Schedule":"Recent sessions"}
+              {tab==="patients"?"My patients":tab==="programs"?"Programs":tab==="rbts"?"My RBTs":tab==="templates"?"Templates":tab==="schedule"?"Schedule":tab==="dashboard"?"Patient dashboard":"Recent sessions"}
             </div>
             <div style={{ fontSize:12, color:T.ink3, marginTop:3 }}>
               {tab==="patients"?`${patients.length} patients`:tab==="rbts"?`${rbts.length} RBTs`:""}
@@ -564,7 +565,7 @@ const NAV = [
           ) : tab==="templates" ? (
             <TemplateManager user={user} patients={patients} showToast={showToast} />
           ) : tab==="dashboard" ? (
-            <BCBADashboardView patient={dashboardPatient} patients={patients} onSelectPatient={setDashboardPatient} onBack={()=>setTab("patients")} />
+            <DashboardView key={dashboardPatient?.id || "first"} patient={dashboardPatient} patients={patients} role="bcba" userId={user.id} />
           ) : (
             <SessionsTab userId={user.id} patients={patients} rbts={rbts} />
           )}
@@ -1318,110 +1319,6 @@ function EditPatientForm({ patient, onClose, onSave }) {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function BCBADashboardView({ patient: selectedPatient, patients = [], onSelectPatient, onBack }) {
-  // Same behaviour as the RBT dashboard: a patient selector, defaulting to the first patient.
-  const patient = selectedPatient || patients[0] || null;
-  const [sessions, setSessions] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!patient) { setLoading(false); return; }
-    setLoading(true);
-    Promise.all([
-      supabase.from("sessions").select("*").eq("patient_id", patient.id).is("deleted_at", null).order("started_at", {ascending:false}),
-      supabase.from("programs").select("*").eq("patient_id", patient.id).eq("status","active"),
-    ]).then(([s, p]) => {
-      setSessions(s.data||[]);
-      setPrograms(p.data||[]);
-      setLoading(false);
-    });
-  }, [patient?.id]);
-
-  const fmtHMS = (s) => s ? `${String(Math.floor(s/3600)).padStart(2,"0")}:${String(Math.floor((s%3600)/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}` : "—";
-  const documented = sessions.filter(s=>s.documentation_status==="documented").length;
-  const avgDuration = sessions.length ? Math.round(sessions.reduce((a,s)=>a+(s.duration_secs||0),0)/sessions.length) : 0;
-
-  if(!patient) return (
-    <div style={{ textAlign:"center", padding:60, color:T.ink3 }}>
-      No patients yet. Add a patient in “My patients” to see their dashboard.
-    </div>
-  );
-
-  const patientSelector = patients.length > 1 && (
-    <div style={{ marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
-      <div style={{ fontSize:13, fontWeight:600, color:T.ink3 }}>Patient:</div>
-      <select value={patient.id} onChange={e=>onSelectPatient?.(patients.find(p=>p.id===e.target.value)||null)}
-        style={{ padding:"7px 12px", borderRadius:8, border:`1px solid ${T.border2}`, fontSize:13, outline:"none", background:T.white, cursor:"pointer", flex:1, maxWidth:300 }}>
-        {patients.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
-    </div>
-  );
-
-  if(loading) return <div>{patientSelector}<div style={{ textAlign:"center", padding:60, color:T.ink3 }}>Loading…</div></div>;
-
-  return (
-    <div>
-      {patientSelector}
-      <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:44, height:44, borderRadius:"50%", background:patient.color||T.navyMd, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:700, color:"#fff" }}>{patient.initials}</div>
-          <div>
-            <div style={{ fontSize:18, fontWeight:700 }}>{patient.name}</div>
-            <div style={{ fontSize:12, color:T.ink3 }}>{patient.diagnosis}</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(min(140px,100%),1fr))", gap:12, marginBottom:20 }}>
-        {[
-          { label:"Total sessions", value:sessions.length, color:T.navy },
-          { label:"Documented", value:`${documented}/${sessions.length}`, color:T.green },
-          { label:"Avg duration", value:fmtHMS(avgDuration), color:T.amber },
-          { label:"Active programs", value:programs.length, color:T.navy },
-        ].map((m,i)=>(
-          <Card key={i} style={{ padding:"16px 20px" }}>
-            <div style={{ fontSize:11, fontWeight:700, color:T.ink3, textTransform:"uppercase", letterSpacing:".06em", marginBottom:6 }}>{m.label}</div>
-            <div style={{ fontSize:28, fontWeight:800, color:m.color, letterSpacing:"-1px" }}>{m.value}</div>
-          </Card>
-        ))}
-      </div>
-
-      <Card style={{ marginBottom:16 }}>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>Active programs</div>
-        {programs.length===0 ? <div style={{ fontSize:13, color:T.ink3 }}>No programs</div> :
-        programs.map((p,i)=>(
-          <div key={p.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderBottom:i<programs.length-1?`1px solid ${T.border}`:"none" }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600 }}>{p.name}</div>
-              <div style={{ fontSize:11, color:T.ink3 }}>{p.type?.replace(/_/g," ")} · Target: {p.target||"—"}</div>
-            </div>
-          </div>
-        ))}
-      </Card>
-
-      <Card>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>Session history</div>
-        {sessions.length===0 ? <div style={{ fontSize:13, color:T.ink3 }}>No sessions yet</div> :
-        sessions.slice(0,10).map((s,i,arr)=>(
-          <div key={s.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:i<arr.length-1?`1px solid ${T.border}`:"none" }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600 }}>{new Date(s.started_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
-              <div style={{ fontSize:11, color:T.ink3 }}>{s.rbt_name} · {new Date(s.started_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
-            </div>
-            <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:13, fontWeight:600 }}>{fmtHMS(s.duration_secs)}</div>
-              <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:99, background:s.documentation_status==="documented"?T.greenLt:T.amberLt, color:s.documentation_status==="documented"?T.green:T.amber }}>
-                {s.documentation_status==="documented"?"✓ Documented":"⏳ Pending"}
-              </span>
-            </div>
-          </div>
-        ))}
-      </Card>
     </div>
   );
 }

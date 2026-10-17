@@ -868,7 +868,11 @@ function ChartCard({ title, color, data, labels, targetVal, targetLabel, suffix=
 }
 
 // ─── Dashboard view ───────────────────────────────────────────────────────────
-function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
+// Shared by the RBT platform and the BCBA panel.
+// role="rbt": RBT can document, edit notes and delete sessions.
+// role="bcba": read-only data + BCBA comments on documented notes.
+export function DashboardView({ patient, onDocument, patients=[], onSelectPatient, role="rbt", userId }) {
+  const isBCBA = role === "bcba";
   const [sessions, setSessions] = useState([]);
   const [dataPoints, setDataPoints] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -877,11 +881,16 @@ function DashboardView({ patient, onDocument, patients=[], onSelectPatient }) {
   const [rangeFilter, setRangeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedProgram, setSelectedProgram] = useState(null);
-  const [localPatientId, setLocalPatientId] = useState(patient?.id||"");
+  const [localPatientId, setLocalPatientId] = useState(patient?.id || patients[0]?.id || "");
   const localPatient = patients.find(p=>p.id===localPatientId) || patient;
 
+  // Default to the first patient when none was chosen (e.g. opened from the menu)
+  useEffect(() => {
+    if (!localPatientId && patients[0]) setLocalPatientId(patients[0].id);
+  }, [patients]);
+
 useEffect(() => {
-  if (!localPatientId) return;
+  if (!localPatientId) { setLoading(false); return; }
   loadDashboard();
 }, [localPatientId]);
 
@@ -1013,9 +1022,9 @@ useEffect(() => {
       {viewingNote && (
         <SessionNoteViewer
           session={viewingNote}
-          patient={patient}
-          mode="edit"
-          userId={patient.rbt_id}
+          patient={localPatient}
+          mode={isBCBA ? "comment" : "edit"}
+          userId={isBCBA ? userId : localPatient?.rbt_id}
           onClose={()=>setViewingNote(null)}
         />
       )}
@@ -1117,7 +1126,14 @@ useEffect(() => {
 
               {/* Actions */}
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                {s.documentation_status==="pending" ? (
+                {isBCBA ? (
+                  s.documentation_status==="documented" && (
+                    <button onClick={()=>setViewingNote(s)}
+                      style={{ padding:"5px 12px", borderRadius:6, border:`1px solid ${T.border2}`, background:"transparent", fontSize:11, fontWeight:600, cursor:"pointer", color:T.ink2, minWidth:95 }}>
+                      💬 View note
+                    </button>
+                  )
+                ) : s.documentation_status==="pending" ? (
                   <button onClick={()=>onDocument && onDocument(s)}
                     style={{ padding:"5px 12px", borderRadius:6, border:"none", background:T.navy, color:"#fff", fontSize:11, fontWeight:600, cursor:"pointer", minWidth:95 }}>
                     📝 Document
@@ -1128,10 +1144,12 @@ useEffect(() => {
                     ✏️ Edit note
                   </button>
                 )}
+                {!isBCBA && (
                 <button onClick={()=>deleteSession(s.id)}
                   style={{ padding:"5px 9px", borderRadius:6, border:`1px solid ${T.red}20`, background:"transparent", fontSize:13, cursor:"pointer", color:T.red, lineHeight:1 }}>
                   🗑
                 </button>
+                )}
               </div>
             </div>
           ))}
